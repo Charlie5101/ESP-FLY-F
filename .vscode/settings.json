@@ -22,7 +22,11 @@
     "indicator.h": "c",
     "bsp_spi.h": "c",
     "spi_master.h": "c",
-    "freertos.h": "c"
+    "freertos.h": "c",
+    "task.h": "c",
+    "semphr.h": "c",
+    "esp_log.h": "c",
+    "ledc_types.h": "c"
   },
   "idf.flashType": "UART"
 }

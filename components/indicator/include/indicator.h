@@ -1,3 +1,6 @@
+#ifndef INDICATOR__
+#define INDICATOR__
+
 #include "bsp_rmt.h"
 #include "led_strip.h"
 
@@ -6,3 +9,5 @@
 
 void indicator_init();
 void indicator_set(uint8_t R,uint8_t G,uint8_t B);
+
+#endif

@@ -1,5 +1,11 @@
 #include <stdio.h>
 #include "bsp_spi.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+//Mutex Lock Handle
+SemaphoreHandle_t SPI_Mutex_Lock;
 
 /**
  * @brief 
@@ -10,6 +16,14 @@
  */
 void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
 {
+  //Mutex Lock
+  SPI_Mutex_Lock = xSemaphoreCreateMutex();
+  if(SPI_Mutex_Lock == NULL)
+  {
+    ESP_LOGE("SPI","Mutex Lock Create Fail......");
+  }
+  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+
   spi_bus_config_t bus_conf = {
     .mosi_io_num = mosi_pin,
     .miso_io_num = miso_pin,
@@ -37,6 +51,8 @@ void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
   gpio_pad_select_gpio(CS_BOX);
   gpio_set_direction(CS_BOX, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BOX, 1);
+
+  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
 }
 
 /**
@@ -47,6 +63,8 @@ void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
  */
 void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle)
 {
+  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+
   spi_device_interface_config_t device_conf = {
     .clock_speed_hz = 10 * 1000000,
     .mode = 0,
@@ -60,6 +78,8 @@ void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle)
 
   //register device connect to device
   spi_bus_add_device(SPI_HOST,&device_conf,dev_handle);
+
+  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
 }
 
 /**
@@ -73,6 +93,8 @@ void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle)
  */
 void spi_connect_start(uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t len,void *txbuffer,void * rxbuffer)
 {
+  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+
   spi_transaction_t t = {0};
   t.length = len;
   t.tx_buffer = txbuffer;
@@ -81,6 +103,8 @@ void spi_connect_start(uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t le
   spi_device_polling_transmit(*dev_handle,&t);
   // ESP_ERROR_CHECK(spi_device_polling_transmit(icm_42688p,&t));
   gpio_set_level(cs_io, 1);
+
+  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
 }
 
 /**

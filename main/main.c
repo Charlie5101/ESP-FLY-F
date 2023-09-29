@@ -5,6 +5,7 @@
 #include "indicator.h"
 #include "sensor.h"
 #include "black_box.h"
+#include "motor.h"
 
 /*task config*/
 #define Task_MAIN_Stack       1024
@@ -136,7 +137,6 @@ void Task_sensor(void *arg)
   // gpio_pad_select_gpio(9);
   // gpio_set_direction(9,GPIO_MODE_OUTPUT);
   // gpio_set_level(9,0);
-  vTaskDelay(1000);
   sensor_init();
   for(;;)
   {
@@ -238,6 +238,15 @@ void Task_bat_adc(void *arg)
  */
 void Task_motor(void *arg)
 {
+  motor_init();
+  motor_throttle_set(1,100.0);
+  motor_throttle_set(2,75.0);
+  motor_throttle_set(3,50.0);
+  motor_throttle_set(4,25.0);
+  servo_out_set(1,23.0);
+  servo_out_set(2,35.0);
+  servo_out_set(3,67.0);
+  servo_out_set(4,89.0);
   for(;;)
   {
     vTaskDelay(10);

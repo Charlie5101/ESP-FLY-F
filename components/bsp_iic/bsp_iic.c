@@ -1,5 +1,11 @@
 #include <stdio.h>
 #include "bsp_iic.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "esp_log.h"
+
+//Mutex Lock Handle
+SemaphoreHandle_t IIC_Mutex_Lock;
 
 /**
  * @brief 
@@ -9,8 +15,16 @@
  * @param SCL_IO 
  * @param IIC_frq 
  */
-void iic_master_cfg_and_install(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,uint32_t IIC_frq)
+void iic_master_init(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,uint32_t IIC_frq)
 {
+  //Mutex Lock
+  IIC_Mutex_Lock = xSemaphoreCreateMutex();
+  if(IIC_Mutex_Lock == NULL)
+  {
+    ESP_LOGE("IIC","Mutex Lock Create Fail......");
+  }
+  xSemaphoreTake(IIC_Mutex_Lock,portMAX_DELAY);     //Lock
+
   //config iic
   uint8_t iic_master_port = iic_port;
   i2c_config_t conf = {
@@ -25,6 +39,7 @@ void iic_master_cfg_and_install(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,u
   i2c_param_config(iic_master_port,&conf);
   //install iic
   i2c_driver_install(iic_master_port,conf.mode,0,0,0);
+  xSemaphoreGive(IIC_Mutex_Lock);     //UNLock
 }
 
 /**
@@ -38,7 +53,7 @@ void iic_master_cfg_and_install(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,u
  * @param rx_buf_len 
  * @param tx_buf_len 
  */
-void iic_slave_cfg_and_install(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,uint16_t SLAVE_ADDR,uint32_t MAXSPEED,uint32_t rx_buf_len,uint32_t tx_buf_len)
+void iic_slave_init(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,uint16_t SLAVE_ADDR,uint32_t MAXSPEED,uint32_t rx_buf_len,uint32_t tx_buf_len)
 {
   //config iic
   uint8_t iic_slave_port = iic_port;
@@ -68,6 +83,7 @@ void iic_slave_cfg_and_install(uint8_t iic_port,uint8_t SDA_IO,uint8_t SCL_IO,ui
  */
 void iic_send(uint8_t iic_port,uint8_t dst_addr,uint8_t *iic_data,uint32_t data_len)
 {
+  xSemaphoreTake(IIC_Mutex_Lock,portMAX_DELAY);     //Lock
   //create one cmd link
   i2c_cmd_handle_t iic_cmd_link = i2c_cmd_link_create();
   i2c_master_start(iic_cmd_link);
@@ -76,6 +92,7 @@ void iic_send(uint8_t iic_port,uint8_t dst_addr,uint8_t *iic_data,uint32_t data_
   i2c_master_stop(iic_cmd_link);
   i2c_master_cmd_begin(iic_port,iic_cmd_link,0xFFFF);
   i2c_cmd_link_delete(iic_cmd_link);
+  xSemaphoreGive(IIC_Mutex_Lock);     //UNLock
 }
 
 /**
@@ -88,6 +105,7 @@ void iic_send(uint8_t iic_port,uint8_t dst_addr,uint8_t *iic_data,uint32_t data_
  */
 void iic_read(uint8_t iic_port,uint8_t dst_addr,uint8_t *iic_data,uint32_t data_len)
 {
+  xSemaphoreTake(IIC_Mutex_Lock,portMAX_DELAY);     //Lock
   //create one cmd link
   i2c_cmd_handle_t iic_cmd_link = i2c_cmd_link_create();
   i2c_master_start(iic_cmd_link);
@@ -96,4 +114,5 @@ void iic_read(uint8_t iic_port,uint8_t dst_addr,uint8_t *iic_data,uint32_t data_
   i2c_master_stop(iic_cmd_link);
   i2c_master_cmd_begin(iic_port,iic_cmd_link,0xFFFF);
   i2c_cmd_link_delete(iic_cmd_link);
+  xSemaphoreGive(IIC_Mutex_Lock);     //UNLock
 }

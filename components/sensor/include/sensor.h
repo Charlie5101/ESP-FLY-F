@@ -1,3 +1,6 @@
+#ifndef SENSOR__
+#define SENSOR__
+
 #include "bsp_spi.h"
 
 /*ICM-42688p Register Map*/
@@ -222,3 +225,5 @@
 /*BMP388 Register Map*/
 
 void sensor_init(void);
+
+#endif
