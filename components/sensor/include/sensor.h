@@ -225,5 +225,14 @@
 /*BMP388 Register Map*/
 
 void sensor_init(void);
+void ICM_42688P_init(void);
+float ICM_42688P_read_Temp(void);
+uint16_t ICM_42688P_read_Temp_u16(void);
+void ICM_42688P_read_ACC(float *Ax,float *Ay,float *Az);
+void ICM_42688P_read_GYRO(float *Gx,float *Gy,float *Gz);
+void ICM_42688P_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
+void ICM_42688P_read_FIFO(void);
+void BMI270_init(void);
+void BMP388_init(void);
 
 #endif

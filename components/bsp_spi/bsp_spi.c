@@ -35,20 +35,17 @@ void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
   //init spi bus
   spi_bus_initialize(SPI_HOST,&bus_conf,SPI_DMA_CH_AUTO);
   //CS pull up
-  gpio_pad_select_gpio(CS_42688P);
   gpio_set_direction(CS_42688P, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_42688P, 1);
 
-  gpio_pad_select_gpio(CS_BMI270);      //BMI270 switch into SPI Mode
+  //BMI270 switch into SPI Mode
   gpio_set_direction(CS_BMI270, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMI270, 0);
   gpio_set_level(CS_BMI270, 1);
 
-  gpio_pad_select_gpio(CS_BMP388);
   gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMP388, 1);
 
-  gpio_pad_select_gpio(CS_BOX);
   gpio_set_direction(CS_BOX, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BOX, 1);
 

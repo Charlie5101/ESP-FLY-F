@@ -25,7 +25,7 @@ void uart_send(uint8_t uart_num,uint8_t *tx_buffer,uint32_t len)
 
 uint32_t uart_check_rx_fifo(uint8_t uart_num)
 {
-  uint32_t p_size[1];
+  size_t p_size[1];
   uart_get_buffered_data_len(uart_num,p_size);
   return *p_size;
 }

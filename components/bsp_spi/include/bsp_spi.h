@@ -3,7 +3,6 @@
 
 #include "driver/spi_master.h"
 #include "driver/spi_common.h"
-#include "driver/spi_common_internal.h"
 #include "driver/gpio.h"
 
 #define SPI_HOST SPI2_HOST
