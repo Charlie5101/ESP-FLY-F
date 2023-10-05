@@ -1,1 +1,1 @@
-void func(void);
+#include <math.h>

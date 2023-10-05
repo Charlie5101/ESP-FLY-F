@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_log.h"
 
 #include "indicator.h"
@@ -8,6 +9,7 @@
 #include "black_box.h"
 #include "motor.h"
 #include "bsp_gpio.h"
+#include "bsp_intr.h"
 
 /*task config*/
 #define Task_MAIN_Stack       1024
@@ -78,40 +80,40 @@ void Task_receiver(void *arg);
 uint8_t app_main(void)
 {
   //Allow other core to finish initialization
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  vTaskDelay(1000);
 
   //peripherals init
   spi_bus_init(SPI_MOSI,SPI_MISO,SPI_SCLK);
   //Create semaphores
 
   //Create tasks
-  xTaskCreatePinnedToCore(Task_MAIN,      "main task",      Task_MAIN_Stack,      NULL, Task_MAIN_Prio,       &MAIN_Handle,      tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_MAIN,      "main task",      Task_MAIN_Stack,      NULL, Task_MAIN_Prio,       &MAIN_Handle,      0);
   #if SENSOR_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_sensor,    "IMU task",       Task_sensor_Stack,    NULL, Task_sensor_Prio,     &Sensor_Handle,    tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_sensor,    "IMU task",       Task_sensor_Stack,    NULL, Task_sensor_Prio,     &Sensor_Handle,    1);
   #endif
   #if BLACK_BOX_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_black_box, "ram black box",  Task_black_box_Stack, NULL, Task_black_box_Prio,  &Black_box_Handle, tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_black_box, "ram black box",  Task_black_box_Stack, NULL, Task_black_box_Prio,  &Black_box_Handle, 0);
   #endif
   #if INDICATOR_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_indicator, "indicator LED",  Task_indicator_Stack, NULL, Task_indicator_Prio,  &Indicator_Handle, tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_indicator, "indicator LED",  Task_indicator_Stack, NULL, Task_indicator_Prio,  &Indicator_Handle, 0);
   #endif
   #if BUZZER_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_buzzer,    "buzzer",         Task_buzzer_Stack,    NULL, Task_buzzer_Prio,     &Buzzer_Handle,    tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_buzzer,    "buzzer",         Task_buzzer_Stack,    NULL, Task_buzzer_Prio,     &Buzzer_Handle,    0);
   #endif
   #if BAT_ADC_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_bat_adc,   "Battery voltage",Task_bat_adc_Stack,   NULL, Task_bat_adc_Prio,    &Bat_adc_Handle,   tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_bat_adc,   "Battery voltage",Task_bat_adc_Stack,   NULL, Task_bat_adc_Prio,    &Bat_adc_Handle,   0);
   #endif
   #if MOTOR_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_motor,     "PWM motor out",  Task_motor_Stack,     NULL, Task_motor_Prio,      &Motor_Handle,     tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_motor,     "PWM motor out",  Task_motor_Stack,     NULL, Task_motor_Prio,      &Motor_Handle,     0);
   #endif
   #if GPS_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_GPS,       "GPS/BDS",        Task_GPS_Stack,       NULL, Task_GPS_Prio,        &GPS_Handle,       tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_GPS,       "GPS/BDS",        Task_GPS_Stack,       NULL, Task_GPS_Prio,        &GPS_Handle,       0);
   #endif
   #if RGB_LED_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_RGB_LED,   "RGB LED out",    Task_RGB_LED_Stack,   NULL, Task_RGB_LED_Prio,    &RGB_LED_Handle,   tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_RGB_LED,   "RGB LED out",    Task_RGB_LED_Stack,   NULL, Task_RGB_LED_Prio,    &RGB_LED_Handle,   0);
   #endif
   #if RECEIVER_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_receiver,   "Receiver",      Task_receiver_Stack,  NULL, Task_receiver_Prio,   &Receiver_HANDLE,  tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(Task_receiver,   "Receiver",      Task_receiver_Stack,  NULL, Task_receiver_Prio,   &Receiver_HANDLE,  0);
   #endif
 
   return 0;
@@ -140,15 +142,22 @@ void Task_sensor(void *arg)
 {
   sensor_init();
   float Ax,Ay,Az,Gx,Gy,Gz;
+  imu_timer_create();
+  vTaskDelay(1000);
+  intr_all_enable_and_start();
   for(;;)
   {
+
     // ICM_42688P_read_Temp();
     // ICM_42688P_read_ACC(&Ax,&Ay,&Az);
     // ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
+    xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
     ICM_42688P_read_ACC_GYRO(&Ax,&Ay,&Az,&Gx,&Gy,&Gz);
-    ESP_LOGI("Sensor","ICM-42688P Az: %f",Az);
+    imu_timer_restart();
+    // ESP_LOGI("Sensor","ICM-42688P Az: %f",Az);
     // ICM_42688P_read_FIFO();
-    vTaskDelay(1);
+    // vTaskDelay(1);
+    // xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
   }
 }
 

@@ -24,7 +24,8 @@
     "ledc_types.h": "c",
     "*.ipp": "cpp",
     "timer.h": "c",
-    "spi_common.h": "c"
+    "spi_common.h": "c",
+    "gptimer.h": "c"
   },
   "idf.flashType": "UART"
 }
