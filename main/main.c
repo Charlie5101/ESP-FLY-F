@@ -144,7 +144,7 @@ void Task_sensor(void *arg)
   float Ax,Ay,Az,Gx,Gy,Gz;
   imu_timer_create();
   vTaskDelay(1000);
-  intr_all_enable_and_start();
+  imu_intr_enable_and_start();
   for(;;)
   {
 

@@ -9,7 +9,10 @@ extern SemaphoreHandle_t Sensor_get_data;
 
 void imu_timer_create(void);
 bool imu_data_get_intr(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
-void intr_all_enable_and_start(void);
+void imu_intr_enable_and_start(void);
 void imu_timer_restart(void);
+void control_timer_create(void);
+bool control_intr(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
+void control_intr_enable_and_start(void);
 
 #endif

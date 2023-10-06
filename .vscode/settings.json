@@ -1,5 +1,7 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
+  // "C_Cpp.intelliSenseEngineFallback": "disabled", //需要添加的
+  // "C_Cpp.intelliSenseEngine": "Tag Parser",  //  需要添加的
   "idf.adapterTargetName": "esp32s3",
   "idf.espIdfPathWin": "C:\\Users\\70435\\esp\\esp-idf",
   "idf.openOcdConfigs": [
@@ -25,7 +27,11 @@
     "*.ipp": "cpp",
     "timer.h": "c",
     "spi_common.h": "c",
-    "gptimer.h": "c"
+    "gptimer.h": "c",
+    "bsp_intr.h": "c",
+    "pid.h": "c",
+    "stdio.h": "c",
+    "random": "c"
   },
   "idf.flashType": "UART"
 }

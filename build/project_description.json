@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "ESP-FLY-F",
-    "project_version":    "f9e9f24-dirty",
+    "project_version":    "fbe4de7-dirty",
     "project_path":       "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F",
     "idf_path":           "C:/Users/70435/esp/esp-idf",
     "build_dir":          "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build",
@@ -215,7 +215,7 @@
             "dir": "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/components/bsp_intr",
             "type": "LIBRARY",
             "lib": "__idf_bsp_intr",
-            "reqs": [ "driver" ],
+            "reqs": [ "driver", "PID" ],
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
