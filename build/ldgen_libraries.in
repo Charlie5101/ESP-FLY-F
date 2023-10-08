@@ -46,6 +46,7 @@ $<TARGET_FILE:__idf_tcp_transport>
 $<TARGET_FILE:__idf_esp_http_client>
 $<TARGET_FILE:__idf_esp_http_server>
 $<TARGET_FILE:__idf_esp_https_ota>
+$<TARGET_FILE:__idf_esp_psram>
 $<TARGET_FILE:__idf_esp_lcd>
 $<TARGET_FILE:__idf_protobuf-c>
 $<TARGET_FILE:__idf_protocomm>
@@ -80,5 +81,6 @@ $<TARGET_FILE:__idf_buzzer>
 $<TARGET_FILE:__idf_led_strip>
 $<TARGET_FILE:__idf_indicator>
 $<TARGET_FILE:__idf_motor>
+$<TARGET_FILE:__idf_myWifi>
 $<TARGET_FILE:__idf_receiver>
 $<TARGET_FILE:__idf_sensor>

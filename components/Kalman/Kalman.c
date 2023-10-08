@@ -49,4 +49,8 @@ float HPF_cal(myHPF *HPF,float Sample)
 
 //band Pass Filter
 
-
+//Kalman
+void Kalman_init()
+{
+  
+}

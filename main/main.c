@@ -1,8 +1,10 @@
 #include <stdio.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
 
 #include "indicator.h"
 #include "sensor.h"
@@ -10,9 +12,10 @@
 #include "motor.h"
 #include "bsp_gpio.h"
 #include "bsp_intr.h"
+#include "myWifi.h"
 
 /*task config*/
-#define Task_MAIN_Stack       1024
+#define Task_MAIN_Stack       4096
 #define Task_MAIN_Prio        3
 #define Task_sensor_Stack     4096
 #define Task_sensor_Prio      3
@@ -32,6 +35,8 @@
 #define Task_RGB_LED_Prio     3
 #define Task_receiver_Stack   4096
 #define Task_receiver_Prio    3
+#define Task_UpMonitor_Stack  4096
+#define Task_UpMonitor_Prio   1
 
 /*ground task*/
 #define Task_IIC_Stack        4096
@@ -43,15 +48,16 @@
 //PWM control write in interrupt
 
 /*component config*/
-#define SENSOR_ENABLE    1
-#define BLACK_BOX_ENABLE 1
-#define INDICATOR_ENABLE 1
-#define BUZZER_ENABLE    1
-#define BAT_ADC_ENABLE   1
-#define MOTOR_ENABLE     1
-#define GPS_ENABLE       1
-#define RGB_LED_ENABLE   1
-#define RECEIVER_ENABLE  1
+#define SENSOR_ENABLE         1
+#define BLACK_BOX_ENABLE      1
+#define INDICATOR_ENABLE      1
+#define BUZZER_ENABLE         1
+#define BAT_ADC_ENABLE        1
+#define MOTOR_ENABLE          1
+#define GPS_ENABLE            1
+#define RGB_LED_ENABLE        1
+#define RECEIVER_ENABLE       1
+#define UPMONITOR_ENABLE      1
 
 /*Task Handle*/
 TaskHandle_t MAIN_Handle;
@@ -63,7 +69,8 @@ TaskHandle_t Bat_adc_Handle;
 TaskHandle_t Motor_Handle;
 TaskHandle_t GPS_Handle;
 TaskHandle_t RGB_LED_Handle;
-TaskHandle_t Receiver_HANDLE;
+TaskHandle_t Receiver_Handle;
+TaskHandle_t UpMonitor_Handle;
 
 /*Task fun declear*/
 void Task_MAIN(void *arg);
@@ -76,12 +83,18 @@ void Task_motor(void *arg);
 void Task_GPS(void *arg);
 void Task_RGB_LED(void *arg);
 void Task_receiver(void *arg);
+void Task_UpMonitor(void *arg);
 
 uint8_t app_main(void)
 {
   //Allow other core to finish initialization
   vTaskDelay(1000);
-
+  esp_err_t ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    ret = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(ret);
   //peripherals init
   spi_bus_init(SPI_MOSI,SPI_MISO,SPI_SCLK);
   //Create semaphores
@@ -92,7 +105,7 @@ uint8_t app_main(void)
   xTaskCreatePinnedToCore(Task_sensor,    "IMU task",       Task_sensor_Stack,    NULL, Task_sensor_Prio,     &Sensor_Handle,    1);
   #endif
   #if BLACK_BOX_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_black_box, "ram black box",  Task_black_box_Stack, NULL, Task_black_box_Prio,  &Black_box_Handle, 0);
+  xTaskCreatePinnedToCore(Task_black_box, "flash black box",Task_black_box_Stack, NULL, Task_black_box_Prio,  &Black_box_Handle, 0);
   #endif
   #if INDICATOR_ENABLE == 1
   xTaskCreatePinnedToCore(Task_indicator, "indicator LED",  Task_indicator_Stack, NULL, Task_indicator_Prio,  &Indicator_Handle, 0);
@@ -113,7 +126,10 @@ uint8_t app_main(void)
   xTaskCreatePinnedToCore(Task_RGB_LED,   "RGB LED out",    Task_RGB_LED_Stack,   NULL, Task_RGB_LED_Prio,    &RGB_LED_Handle,   0);
   #endif
   #if RECEIVER_ENABLE == 1
-  xTaskCreatePinnedToCore(Task_receiver,   "Receiver",      Task_receiver_Stack,  NULL, Task_receiver_Prio,   &Receiver_HANDLE,  0);
+  xTaskCreatePinnedToCore(Task_receiver,   "Receiver",      Task_receiver_Stack,  NULL, Task_receiver_Prio,   &Receiver_Handle,  0);
+  #endif
+  #if UPMONITOR_ENABLE == 1
+  xTaskCreatePinnedToCore(Task_UpMonitor,  "UpMonitor",     Task_UpMonitor_Stack, NULL, Task_UpMonitor_Prio,  &UpMonitor_Handle, 0);
   #endif
 
   return 0;
@@ -126,7 +142,9 @@ uint8_t app_main(void)
  */
 void Task_MAIN(void *arg)
 {
-
+  control_timer_create();
+  vTaskDelay(1000);
+  control_intr_enable_and_start();
   for(;;)
   {
     vTaskDelay(10);
@@ -152,6 +170,7 @@ void Task_sensor(void *arg)
     // ICM_42688P_read_ACC(&Ax,&Ay,&Az);
     // ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
     xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
+    imu_timer_stop();
     ICM_42688P_read_ACC_GYRO(&Ax,&Ay,&Az,&Gx,&Gy,&Gz);
     imu_timer_restart();
     // ESP_LOGI("Sensor","ICM-42688P Az: %f",Az);
@@ -184,7 +203,7 @@ void Task_indicator(void *arg)
 {
   indicator_init();
   vTaskDelay(10);
-  indicator_set(0,80,0);
+  indicator_set(80,0,0);
   vTaskDelay(250);
   static uint8_t B_t = 0;
   static uint8_t B_dir = 0;
@@ -306,6 +325,25 @@ void Task_receiver(void *arg)
   for(;;)
   {
     vTaskDelay(10);
+  }
+}
+
+/**
+ * @brief 
+ * 
+ * @param arg 
+ */
+void Task_UpMonitor(void *arg)
+{
+  myWifi_init();
+  myWifi_start();
+  vTaskDelay(5000);
+  my_wifi_vofa_init();
+  vTaskDelay(1000);
+  for(;;)
+  {
+    myWifi_vofa_send("Hello World :) \n");
+    vTaskDelay(1);
   }
 }
 

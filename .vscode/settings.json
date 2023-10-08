@@ -31,7 +31,11 @@
     "bsp_intr.h": "c",
     "pid.h": "c",
     "stdio.h": "c",
-    "random": "c"
+    "random": "c",
+    "esp_event.h": "c",
+    "esp_wifi.h": "c",
+    "sockets.h": "c"
   },
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "idf.flashBaudRate": "921600"
 }
