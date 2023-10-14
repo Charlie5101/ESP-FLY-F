@@ -157,9 +157,10 @@ void my_wifi_vofa_init()
   // }
 }
 
-void myWifi_vofa_send(char *payload)
+void myWifi_vofa_send(char *payload,uint32_t len)
 {
-  int err = send(sock, payload, strlen(payload), 0);
+  // int err = send(sock, payload, strlen(payload), 0);
+  int err = send(sock, payload, len, 0);
   if (err < 0) {
     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
     while(1)

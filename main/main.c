@@ -13,6 +13,7 @@
 #include "bsp_gpio.h"
 #include "bsp_intr.h"
 #include "myWifi.h"
+#include "Kalman.h"
 
 /*task config*/
 #define Task_MAIN_Stack       4096
@@ -151,6 +152,10 @@ void Task_MAIN(void *arg)
   }
 }
 
+float Ax,Ay,Az,Gx,Gy,Gz;
+float Yaw_angle = 0.0,Yaw_speed = 0.0;
+float t = 0.0001;
+myKalman_2 Gz_Kalman;
 /**
  * @brief 
  * 
@@ -159,9 +164,32 @@ void Task_MAIN(void *arg)
 void Task_sensor(void *arg)
 {
   sensor_init();
-  float Ax,Ay,Az,Gx,Gy,Gz;
+  Kalman_2_init(&Gz_Kalman,1.0,t,0.0,1.0,
+                           0.5*t*t,t,
+                           1.0,0.0,0.0,1.0,
+                           5.0,0.0,0.0,5.0,
+                           0.4,0.0,0.0,0.2,
+                           0.0,0.0,
+                           0.0);
+  // float Ax,Ay,Az,Gx,Gy,Gz;
   imu_timer_create();
-  vTaskDelay(1000);
+  vTaskDelay(10000);
+
+  // union
+  // {
+  //   float data[4];
+  //   char out[4*4];
+  // }Line;
+  // myWifi_init();
+  // myWifi_start();
+  // vTaskDelay(5000);
+  // my_wifi_vofa_init();
+  // vTaskDelay(1000);
+  // Line.out[12] = 0x00;
+  // Line.out[13] = 0x00;
+  // Line.out[14] = 0x80;
+  // Line.out[15] = 0x7F;
+  uint32_t time_k = xTaskGetTickCount();
   imu_intr_enable_and_start();
   for(;;)
   {
@@ -172,6 +200,17 @@ void Task_sensor(void *arg)
     xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
     imu_timer_stop();
     ICM_42688P_read_ACC_GYRO(&Ax,&Ay,&Az,&Gx,&Gy,&Gz);
+    t = 0.001 * (float)(xTaskGetTickCount() - time_k);
+    time_k = xTaskGetTickCount();
+    Yaw_angle += (Gz - 0.111362f) * t;
+    Kalman_2_cal(&Gz_Kalman,1.0,t,0.0,1.0,
+                            0.5*t*t,t,
+                            0.0,
+                            Yaw_angle,(Gz - 0.111362f));
+    // Line.data[0] = Gx;
+    // Line.data[1] = Gy;
+    // Line.data[2] = Gz;
+    // myWifi_vofa_send(Line.out,4*4);
     imu_timer_restart();
     // ESP_LOGI("Sensor","ICM-42688P Az: %f",Az);
     // ICM_42688P_read_FIFO();
@@ -335,14 +374,28 @@ void Task_receiver(void *arg)
  */
 void Task_UpMonitor(void *arg)
 {
+  union
+  {
+    float data[5];
+    char out[5*4];
+  }Line;
   myWifi_init();
   myWifi_start();
   vTaskDelay(5000);
   my_wifi_vofa_init();
   vTaskDelay(1000);
+  Line.out[16] = 0x00;
+  Line.out[17] = 0x00;
+  Line.out[18] = 0x80;
+  Line.out[19] = 0x7F;
   for(;;)
   {
-    myWifi_vofa_send("Hello World :) \n");
+    Line.data[0] = Gz_Kalman.X[0];
+    // Line.data[1] = Gy;
+    Line.data[1] = Yaw_angle;
+    Line.data[2] = Gz;
+    Line.data[3] = Gz_Kalman.X[1];
+    myWifi_vofa_send(Line.out,5*4);
     vTaskDelay(1);
   }
 }

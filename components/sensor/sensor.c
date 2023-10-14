@@ -279,11 +279,13 @@ void ICM_42688P_init(void)
   vTaskDelay(100);      //Wait
   //Set Scale And ODR
   Tx_Data_42688p[0] = GYRO_CONFIG0 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x01;
+  // Tx_Data_42688p[1] = 0x01;     //32K
+  Tx_Data_42688p[1] = 0x02;     //16K
   spi_connect_start(CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   Tx_Data_42688p[0] = ACCEL_CONFIG0 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x41;
+  // Tx_Data_42688p[1] = 0x41;     //32K
+  Tx_Data_42688p[1] = 0x42;     //16K
   spi_connect_start(CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //Read WHO AM I
@@ -399,4 +401,14 @@ void BMP388_init(void)
     ESP_LOGI(TAG,"BMP-388 connected");
   else
     ESP_LOGI(TAG,"BMP-388 unconnect......");
+}
+
+void imu_10_data_1_out_to_uart(float Ax,float Ay,float Az,float Gx,float Gy,float Gz,uint32_t index,float Out[10][6])
+{
+  Out[index][0] = Ax;
+  Out[index][1] = Ay;
+  Out[index][2] = Az;
+  Out[index][3] = Gx;
+  Out[index][4] = Gy;
+  Out[index][5] = Gz;
 }
