@@ -227,14 +227,14 @@ void Kalman_2_cal(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
   temp[0][1] = Kalman->P[1][0] * Kalman->H[0][0] + Kalman->P[1][1] * Kalman->H[0][1];
   temp[1][0] = Kalman->P[0][0] * Kalman->H[1][0] + Kalman->P[0][1] * Kalman->H[1][1];
   temp[1][1] = Kalman->P[1][0] * Kalman->H[1][0] + Kalman->P[1][1] * Kalman->H[1][1];
-  Temp[0][0] = Kalman->F[0][0] * (temp[0][0]) + 
-               Kalman->F[0][1] * (temp[0][1]) + Kalman->R[0][0];
-  Temp[0][1] = Kalman->F[0][0] * (temp[1][0]) + 
-               Kalman->F[0][1] * (temp[1][1]) + Kalman->R[0][1];
-  Temp[1][0] = Kalman->F[1][0] * (temp[0][0]) + 
-               Kalman->F[1][1] * (temp[0][1]) + Kalman->R[1][0];
-  Temp[1][1] = Kalman->F[1][0] * (temp[1][0]) + 
-               Kalman->F[1][1] * (temp[1][1]) + Kalman->R[1][1];
+  Temp[0][0] = Kalman->H[0][0] * (temp[0][0]) + 
+               Kalman->H[0][1] * (temp[0][1]) + Kalman->R[0][0];
+  Temp[0][1] = Kalman->H[0][0] * (temp[1][0]) + 
+               Kalman->H[0][1] * (temp[1][1]) + Kalman->R[0][1];
+  Temp[1][0] = Kalman->H[1][0] * (temp[0][0]) + 
+               Kalman->H[1][1] * (temp[0][1]) + Kalman->R[1][0];
+  Temp[1][1] = Kalman->H[1][0] * (temp[1][0]) + 
+               Kalman->H[1][1] * (temp[1][1]) + Kalman->R[1][1];
   float Temp_2[2][2];
   GetMatrixInverse(Temp,2,Temp_2);
   temp[0][0] = Kalman->H[0][0] * Temp_2[0][0] + Kalman->H[1][0] * Temp_2[1][0];
@@ -256,8 +256,8 @@ void Kalman_2_cal(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
   float temp_x[2];
   temp_x[0] = Z_1 - (Kalman->H[0][0] * Temp_X[0] + Kalman->H[0][1] * Temp_X[1]);
   temp_x[1] = Z_2 - (Kalman->H[1][0] * Temp_X[1] + Kalman->H[1][1] * Temp_X[1]);
-  Kalman->X[0] = Kalman->K[0][0] * temp_x[0] + Kalman->K[0][1] * temp_x[1];
-  Kalman->X[1] = Kalman->K[1][0] * temp_x[0] + Kalman->K[1][1] * temp_x[1];
+  Kalman->X[0] = Kalman->X[0] + Kalman->K[0][0] * temp_x[0] + Kalman->K[0][1] * temp_x[1];
+  Kalman->X[1] = Kalman->X[1] + Kalman->K[1][0] * temp_x[0] + Kalman->K[1][1] * temp_x[1];
   //5.step  Cal P
   Temp[0][0] = Kalman->P[0][0];
   Temp[0][1] = Kalman->P[0][1];
