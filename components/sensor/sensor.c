@@ -309,7 +309,7 @@ float ICM_42688P_read_Temp(void)
   // ESP_LOGI(TAG,"ICM-42688P Temp: High bit  %hX",Rx_Data_42688p[1]);
   // ESP_LOGI(TAG,"ICM-42688P Temp: LOW bit  %hX",Rx_Data_42688p[2]);
   temp = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2] ) / 132.48 ) + 25.0;
-  ESP_LOGI(TAG,"ICM-42688P Temp: %f",temp);
+  // ESP_LOGI(TAG,"ICM-42688P Temp: %f",temp);
 
   return temp;
 }
@@ -384,7 +384,11 @@ void BMI270_init(void)
   // Tx_Data_BMI270[1] = 0x00;
   spi_connect_start(CS_BMI270,&bmi_270,4 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
   memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
-  if(Rx_Data_BMI270[3] == 0x24)
+  ESP_LOGI(TAG,"%d",Rx_Data_BMI270[0]);
+  ESP_LOGI(TAG,"%d",Rx_Data_BMI270[1]);
+  ESP_LOGI(TAG,"%d",Rx_Data_BMI270[2]);
+  ESP_LOGI(TAG,"%d",Rx_Data_BMI270[3]);
+  if(Rx_Data_BMI270[2] == 0x24)
     ESP_LOGI(TAG,"BMI-270 connected");
   else
     ESP_LOGI(TAG,"BMI-270 unconnect......");

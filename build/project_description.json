@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "ESP-FLY-F",
-    "project_version":    "48eaabc-dirty",
+    "project_version":    "70ccd7b-dirty",
     "project_path":       "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F",
     "idf_path":           "C:/Users/70435/esp/esp-idf",
     "build_dir":          "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build",
@@ -1085,7 +1085,7 @@
             "dir": "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/components/myWifi",
             "type": "LIBRARY",
             "lib": "__idf_myWifi",
-            "reqs": [ "esp_wifi", "lwip" ],
+            "reqs": [ "esp_wifi", "lwip", "esp_https_ota", "esp_http_client", "app_update", "mbedtls" ],
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],

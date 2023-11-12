@@ -7,7 +7,7 @@
   "idf.openOcdConfigs": [
     "board/esp32s3-builtin.cfg"
   ],
-  "idf.portWin": "COM5",
+  "idf.portWin": "COM14",
   "idf.pythonBinPathWin": "C:\\Users\\70435\\.espressif\\python_env\\idf5.1_py3.11_env\\Scripts\\python.exe",
   "idf.toolsPathWin": "C:\\Users\\70435\\.espressif",
   "files.associations": {
@@ -34,8 +34,10 @@
     "random": "c",
     "esp_event.h": "c",
     "esp_wifi.h": "c",
-    "sockets.h": "c"
+    "sockets.h": "c",
+    "esp_ota_ops.h": "c",
+    "esp_crt_bundle.h": "c"
   },
-  "idf.flashType": "UART",
+  "idf.flashType": "JTAG",
   "idf.flashBaudRate": "921600"
 }
