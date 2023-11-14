@@ -232,7 +232,12 @@ void ICM_42688P_read_ACC(float *Ax,float *Ay,float *Az);
 void ICM_42688P_read_GYRO(float *Gx,float *Gy,float *Gz);
 void ICM_42688P_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
 void ICM_42688P_read_FIFO(void);
+void ICM_42688P_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B);
 void BMI270_init(void);
+float BMI270_read_Temp(void);
+void BMI270_read_GYRO(float *Gx,float *Gy,float *Gz);
+void BMI270_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
+void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B);
 void BMP388_init(void);
 
 #endif

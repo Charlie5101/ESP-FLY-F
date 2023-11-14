@@ -99,8 +99,6 @@ void myWifi_init(void)
 void myWifi_start(void)
 {
   ESP_ERROR_CHECK(esp_wifi_start());
-  //Full power wifi
-  esp_wifi_set_ps(WIFI_PS_NONE);
 }
 
 void myWifi_stop(void)
@@ -147,28 +145,6 @@ void my_wifi_vofa_init(void)
       vTaskDelay(100);
     }
   }
-
-  // int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-  // // Error occurred during receiving
-  // if (len < 0) {
-  //   ESP_LOGE(TAG, "recv failed: errno %d", errno);
-  //   while(1)
-  //   {
-  //     vTaskDelay(100);
-  //   }
-  // }
-  // // Data received
-  // else {
-  //   rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-  //   ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
-  //   ESP_LOGI(TAG, "%s", rx_buffer);
-  // }
-
-  // if (sock != -1) {
-  //   ESP_LOGE(TAG, "Shutting down socket and restarting...");
-  //   shutdown(sock, 0);
-  //   close(sock);
-  // }
 }
 
 void myWifi_vofa_send(char *payload,uint32_t len)
@@ -290,6 +266,8 @@ static void get_sha256_of_partitions(void)
 
 void OTA_update(void)
 {
+  //Full power wifi
+  esp_wifi_set_ps(WIFI_PS_NONE);
   //init
   get_sha256_of_partitions();
 

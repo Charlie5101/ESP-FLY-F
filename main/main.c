@@ -18,7 +18,7 @@
 /*task config*/
 #define Task_MAIN_Stack       4096
 #define Task_MAIN_Prio        3
-#define Task_sensor_Stack     4096
+#define Task_sensor_Stack     4096 * 3
 #define Task_sensor_Prio      3
 #define Task_black_box_Stack  4096
 #define Task_black_box_Prio   3
@@ -92,13 +92,26 @@ void Task_UpMonitor(void *arg);
 void Task_Wifi_Recv(void *arg);
 
 /*Var*/
-float IMU_temp = 0.0f;
-float Ax,Ay,Az,Gx,Gy,Gz;
+float ICM_temp = 0.0f;
+float BMI_temp = 0.0f;
+float ICM_Ax,ICM_Ay,ICM_Az,ICM_Gx,ICM_Gy,ICM_Gz;
+float BMI_Ax,BMI_Ay,BMI_Az,BMI_Gx,BMI_Gy,BMI_Gz;
 float Yaw_angle = 0.0,Yaw_speed = 0.0;
+float Yaw_angle_BMI = 0.0;
 float t = 0.0001;
-myKalman_2 Gz_Kalman;
+myKalman_2 Gz_Kalman_ICM;
+myKalman_2 Gz_Kalman_BMI;
+// myKalman_2 Gz_Kalman;
+float Gz = 0.0;
+float Yaw = 0.0;
 float Yaw_Kalman_angle = 0.0;
-const float Gz_offset = 0.25278f;     //0.111362f
+
+float ICM_Gx_offset = 0.0;
+float BMI_Gx_offset = 0.0;
+float ICM_Gy_offset = 0.0;
+float BMI_Gy_offset = 0.0;
+float ICM_Gz_offset = 0.25278f;     //0.111362f
+float BMI_Gz_offset = 0.11278;
 
 indicator_bre indicator_Bre;
 
@@ -179,56 +192,59 @@ void Task_MAIN(void *arg)
 void Task_sensor(void *arg)
 {
   sensor_init();
-  Kalman_2_init(&Gz_Kalman,1.0,t,0.0,1.0,               //F
+  ICM_42688P_Get_Bais(&ICM_Gx_offset,&ICM_Gy_offset,&ICM_Gz_offset);
+  BMI270_Get_Bais(&BMI_Gx_offset,&BMI_Gy_offset,&BMI_Gz_offset);
+  Kalman_2_init(&Gz_Kalman_ICM,1.0,t,0.0,1.0,               //F
                            0.5*t*t,t,                   //B
                            1.0,0.0,0.0,1.0,             //H
                            0.1,0.0,0.0,0.1,             //Q
                            100.0,0.0,0.0,100.0,         //R
                            0.0,0.0,                     //X
                            0.0);                        //Ut
-  // float Ax,Ay,Az,Gx,Gy,Gz;
+  Kalman_2_init(&Gz_Kalman_BMI, 1.0,t,0.0,1.0,               //F
+                                0.5*t*t,t,                   //B
+                                1.0,0.0,0.0,1.0,             //H
+                                0.1,0.0,0.0,0.1,             //Q
+                                1.0,0.0,0.0,1.0,             //R
+                                0.0,0.0,                     //X
+                                0.0);                        //Ut
+  // Kalman_2_init(&Gz_Kalman,     1.0,t,0.0,1.0,               //F
+  //                               0.5*t*t,t,                   //B
+  //                               1.0,0.0,0.0,1.0,             //H
+  //                               0.1,0.0,0.0,0.1,             //Q
+  //                               0.1,0.0,0.0,0.1,             //R
+  //                               0.0,0.0,                     //X
+  //                               0.0);                        //Ut
   imu_timer_create();
   vTaskDelay(10000);
-
-  // union
-  // {
-  //   float data[4];
-  //   char out[4*4];
-  // }Line;
-  // myWifi_init();
-  // myWifi_start();
-  // vTaskDelay(5000);
-  // my_wifi_vofa_init();
-  // vTaskDelay(1000);
-  // Line.out[12] = 0x00;
-  // Line.out[13] = 0x00;
-  // Line.out[14] = 0x80;
-  // Line.out[15] = 0x7F;
   uint32_t time_k = xTaskGetTickCount();
   imu_intr_enable_and_start();
   for(;;)
   {
-
-    // ICM_42688P_read_Temp();
-    // ICM_42688P_read_ACC(&Ax,&Ay,&Az);
-    // ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
     xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
     imu_timer_stop();
-    ICM_42688P_read_ACC_GYRO(&Ax,&Ay,&Az,&Gx,&Gy,&Gz);
+    ICM_42688P_read_ACC_GYRO(&ICM_Ax,&ICM_Ay,&ICM_Az,&ICM_Gx,&ICM_Gy,&ICM_Gz);
+    BMI270_read_ACC_GYRO(&BMI_Ax,&BMI_Ay,&BMI_Az,&BMI_Gx,&BMI_Gy,&BMI_Gz);
     t = 0.001 * (float)(xTaskGetTickCount() - time_k);
     time_k = xTaskGetTickCount();
-    Yaw_angle += (Gz - Gz_offset) * t;
-    Kalman_2_cal(&Gz_Kalman,1.0,t,0.0,1.0,                      //F
+    Yaw_angle += (ICM_Gz - ICM_Gz_offset) * t;
+    Yaw_angle_BMI += (BMI_Gz - BMI_Gz_offset) * t;
+    Kalman_2_cal(&Gz_Kalman_ICM,1.0,t,0.0,1.0,                      //F
                             0.5*t*t,t,                          //B
                             0.0,                                //Ut
-                            Yaw_angle,(Gz - Gz_offset));        //Z_1,Z_2
-    Yaw_Kalman_angle += Gz_Kalman.X[1] * t;
-    IMU_temp = ICM_42688P_read_Temp();
-    // ICM_42688P_read_Temp(); 
-    // Line.data[0] = Gx;
-    // Line.data[1] = Gy;
-    // Line.data[2] = Gz;
-    // myWifi_vofa_send(Line.out,4*4);
+                            Yaw_angle,(ICM_Gz - ICM_Gz_offset));        //Z_1,Z_2
+    Kalman_2_cal(&Gz_Kalman_BMI,1.0,t,0.0,1.0,                      //F
+                                0.5*t*t,t,                          //B
+                                0.0,                                //Ut
+                                Yaw_angle_BMI,(BMI_Gz - BMI_Gz_offset));        //Z_1,Z_2
+    Gz = (Gz_Kalman_BMI.X[1] + Gz_Kalman_ICM.X[1]) / 2.0f;
+    Yaw += Gz * t;
+    // Kalman_2_cal(&Gz_Kalman,1.0,t,0.0,1.0,                      //F
+    //                             0.5*t*t,t,                          //B
+    //                             0.0,                                //Ut
+    //                             Yaw,Gz);        //Z_1,Z_2
+    ICM_temp = ICM_42688P_read_Temp();
+    BMI_temp = BMI270_read_Temp();
     imu_timer_restart();
     // ICM_42688P_read_FIFO();
     // vTaskDelay(1);
@@ -356,7 +372,7 @@ void Task_receiver(void *arg)
   }
 }
 
-#define WIFI_LINE_NUM   5
+#define WIFI_LINE_NUM   10
 /**
  * @brief 
  * 
@@ -380,13 +396,31 @@ void Task_UpMonitor(void *arg)
   Line.out[WIFI_LINE_NUM * 4 + 3] = 0x7F;
   for(;;)
   {
-    Line.data[0] = Gz_Kalman.X[0];
-    // Line.data[0] = IMU_temp;
-    // Line.data[1] = Gy;
-    Line.data[1] = Yaw_angle;
-    Line.data[2] = Gz;
-    Line.data[3] = Gz_Kalman.X[1];
-    Line.data[4] = Yaw_Kalman_angle;
+    // Line.data[0] = Gz_Kalman.X[0];
+    // Line.data[0] = ICM_temp;
+    // // Line.data[1] = Gy;
+    // Line.data[1] = Yaw_angle;
+    // Line.data[2] = ICM_Gz;
+    // Line.data[3] = Gz_Kalman.X[1];
+    // Line.data[4] = Yaw_Kalman_angle;
+
+    // Line.data[0] = Gz_Kalman_BMI.X[0];
+    // Line.data[1] = Gz_Kalman.X[0];
+    // Line.data[2] = Gz_Kalman.X[1];
+    // Line.data[3] = BMI_Gz;
+    // Line.data[4] = Gz_Kalman_BMI.X[1];
+
+    Line.data[0] = Gz;
+    Line.data[1] = Yaw;
+    Line.data[2] = ICM_Gz;
+    Line.data[3] = BMI_Gx;
+    Line.data[4] = Gz_Kalman_ICM.X[0];
+    Line.data[5] = Gz_Kalman_BMI.X[0];
+    Line.data[6] = Gz_Kalman_ICM.X[1];
+    Line.data[7] = Gz_Kalman_BMI.X[1];
+    Line.data[8] = ICM_temp;
+    Line.data[9] = BMI_temp;
+
     myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     vTaskDelay(1);
   }

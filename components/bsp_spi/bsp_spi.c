@@ -30,7 +30,7 @@ void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
     .sclk_io_num = spi_clk,
     .quadhd_io_num = -1,
     .quadwp_io_num = -1,
-    .max_transfer_sz = 4092,
+    .max_transfer_sz = 4092 * 3,
   };
   //init spi bus
   spi_bus_initialize(SPI_HOST,&bus_conf,SPI_DMA_CH_AUTO);
