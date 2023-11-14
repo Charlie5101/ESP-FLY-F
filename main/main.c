@@ -100,7 +100,7 @@ myKalman_2 Gz_Kalman;
 float Yaw_Kalman_angle = 0.0;
 const float Gz_offset = 0.25278f;     //0.111362f
 
-uint8_t indicator_select = 0;
+indicator_bre indicator_Bre;
 
 uint8_t app_main(void)
 {
@@ -261,42 +261,10 @@ void Task_indicator(void *arg)
   vTaskDelay(10);
   indicator_set(80,0,0);
   vTaskDelay(250);
-  static uint8_t B_t = 0;
-  static uint8_t B_dir = 0;
+  indicator_breath_init(&indicator_Bre,0,0,255,255);
   for(;;)
   {
-    if(indicator_select == 0)
-    {
-      switch (B_dir)
-      {
-      case 0:
-        if(B_t < 255)
-        {
-          indicator_set(0,0,B_t);
-          B_t++;
-        }
-        else
-        {
-          B_dir = 1;
-        }
-        break;
-      case 1:
-        if(B_t > 0)
-        {
-          indicator_set(0,0,B_t);
-          B_t--;
-        }
-        else
-        {
-          B_dir = 0;
-        }
-        break;
-      case 2:
-      default:
-        break;
-      }
-    }
-    else{}
+    indicator_breath_cal(&indicator_Bre);
     vTaskDelay(5);
   }
 }
@@ -440,9 +408,12 @@ void Task_Wifi_Recv(void *arg)
     wifi_rec_buff = myWifi_vofa_recv();
     if(*wifi_rec_buff == 'U')
     {
+      //close other wifi
+      vTaskSuspend(UpMonitor_Handle);
+      myWifi_vofa_stop();
+
       ESP_LOGI("OTA","Now going to OTA....");
-      indicator_select = 1;
-      indicator_set(0,255,0);
+      indicator_breath_set(&indicator_Bre,0,255,0,255);
       OTA_update();
     }
     vTaskDelay(10);

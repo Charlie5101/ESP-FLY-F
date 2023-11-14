@@ -44,3 +44,61 @@ void indicator_set(uint8_t R,uint8_t G,uint8_t B)
 
   xSemaphoreGive(Indicator_Mutex_Lock);     //UNLock
 }
+
+void indicator_breath_init(indicator_bre* Bre,uint8_t R,uint8_t G,uint8_t B,uint32_t len)
+{
+  Bre->Dir = 0;
+  Bre->Cnt = 0;
+  Bre->R = R;
+  Bre->G = G;
+  Bre->B = B;
+  Bre->Cnt_len = len;
+}
+
+void indicator_breath_set(indicator_bre* Bre,uint8_t R,uint8_t G,uint8_t B,uint32_t len)
+{
+  Bre->Dir = 0;
+  Bre->Cnt = 0;
+  Bre->R = R;
+  Bre->G = G;
+  Bre->B = B;
+  Bre->Cnt_len = len;
+}
+
+void indicator_breath_cal(indicator_bre* Bre)
+{
+  switch (Bre->Dir)
+  {
+    case 0:
+      if(Bre->Cnt < Bre->Cnt_len)
+      {
+        Bre->cal_R = (uint8_t)(Bre->R * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        Bre->cal_G = (uint8_t)(Bre->G * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        Bre->cal_B = (uint8_t)(Bre->B * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        indicator_set(Bre->cal_R,Bre->cal_G,Bre->cal_B);
+        Bre->Cnt++;
+      }
+      else
+      {
+        Bre->Dir = 1;
+      }
+      break;
+    case 1:
+      if(Bre->Cnt > 0)
+      {
+        Bre->cal_R = (uint8_t)(Bre->R * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        Bre->cal_G = (uint8_t)(Bre->G * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        Bre->cal_B = (uint8_t)(Bre->B * ((float)Bre->Cnt / (float)Bre->Cnt_len));
+        indicator_set(Bre->cal_R,Bre->cal_G,Bre->cal_B);
+        Bre->Cnt--;
+      }
+      else
+      {
+        Bre->Dir = 0;
+      }
+      break;
+    case 2:
+    default:
+      break;
+  }
+}
