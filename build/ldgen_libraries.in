@@ -75,10 +75,10 @@ $<TARGET_FILE:__idf_bsp_gpio>
 $<TARGET_FILE:__idf_bsp_iic>
 $<TARGET_FILE:__idf_bsp_intr>
 $<TARGET_FILE:__idf_bsp_pwm>
+$<TARGET_FILE:__idf_led_strip>
 $<TARGET_FILE:__idf_bsp_rmt>
 $<TARGET_FILE:__idf_bsp_uart>
 $<TARGET_FILE:__idf_buzzer>
-$<TARGET_FILE:__idf_led_strip>
 $<TARGET_FILE:__idf_indicator>
 $<TARGET_FILE:__idf_motor>
 $<TARGET_FILE:__idf_myWifi>

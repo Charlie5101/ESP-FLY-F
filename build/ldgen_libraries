@@ -75,10 +75,10 @@ C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_gpio/libbsp_gpio.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_iic/libbsp_iic.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_intr/libbsp_intr.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_pwm/libbsp_pwm.a
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/libled_strip.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_rmt/libbsp_rmt.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_uart/libbsp_uart.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/libbuzzer.a
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/libled_strip.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/indicator/libindicator.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/motor/libmotor.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/myWifi/libmyWifi.a

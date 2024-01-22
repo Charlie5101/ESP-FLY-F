@@ -704,6 +704,13 @@ C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_pwm/CMakeFiles/list
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_pwm/CMakeFiles/install.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_pwm/CMakeFiles/install/local.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_pwm/CMakeFiles/install/strip.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/__idf_led_strip.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/edit_cache.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/rebuild_cache.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/list_install_components.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install/local.dir
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install/strip.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_rmt/CMakeFiles/__idf_bsp_rmt.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_rmt/CMakeFiles/edit_cache.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_rmt/CMakeFiles/rebuild_cache.dir
@@ -725,13 +732,6 @@ C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/CMakeFiles/list_
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/CMakeFiles/install.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/CMakeFiles/install/local.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/CMakeFiles/install/strip.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/__idf_led_strip.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/edit_cache.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/rebuild_cache.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/list_install_components.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install/local.dir
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/CMakeFiles/install/strip.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/indicator/CMakeFiles/__idf_indicator.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/indicator/CMakeFiles/edit_cache.dir
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/indicator/CMakeFiles/rebuild_cache.dir

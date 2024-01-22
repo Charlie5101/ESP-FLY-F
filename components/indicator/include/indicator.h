@@ -2,7 +2,6 @@
 #define INDICATOR__
 
 #include "bsp_rmt.h"
-#include "led_strip.h"
 
 #define indicator_io                  GPIO_NUM_2
 #define indicator_channel             RMT_CHANNEL_0

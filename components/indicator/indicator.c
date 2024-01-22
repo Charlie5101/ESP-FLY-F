@@ -10,7 +10,7 @@
 SemaphoreHandle_t Indicator_Mutex_Lock;
 
 static const char* TAG = "indicator:";
-led_strip_t *indicator = NULL;
+LED_handle_t *indicator = NULL;
 
 void indicator_init()
 {
@@ -23,8 +23,8 @@ void indicator_init()
 
   ESP_LOGI(TAG,"Init");
   rmt_init(indicator_io,indicator_channel);
-  led_strip_config_t strip_cfg = LED_STRIP_DEFAULT_CONFIG(indicator_num,indicator_channel);
-  indicator = led_strip_new_rmt_ws2812(&strip_cfg);
+  LED_handle_cfg_t strip_cfg = LED_handle_DEFAULT_CONFIG(indicator_num,indicator_channel);
+  indicator = LED_handle_new_ws2812(&strip_cfg);
   if (!indicator) {
         ESP_LOGE(TAG, "install WS2812 driver failed");
     }

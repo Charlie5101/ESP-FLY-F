@@ -469,6 +469,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_rmt/cmake_install.cmake")
 endif()
 
@@ -480,11 +485,6 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
   include("C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/buzzer/cmake_install.cmake")
-endif()
-
-if(NOT CMAKE_INSTALL_LOCAL_ONLY)
-  # Include the install script for the subdirectory.
-  include("C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/led_strip/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)

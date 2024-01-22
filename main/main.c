@@ -229,13 +229,13 @@ void Task_sensor(void *arg)
     time_k = xTaskGetTickCount();
     Yaw_angle += (ICM_Gz - ICM_Gz_offset) * t;
     Yaw_angle_BMI += (BMI_Gz - BMI_Gz_offset) * t;
-    Kalman_2_cal(&Gz_Kalman_ICM,1.0,t,0.0,1.0,                      //F
-                            0.5*t*t,t,                          //B
-                            0.0,                                //Ut
+    Kalman_2_cal(&Gz_Kalman_ICM,1.0,t,0.0,1.0,                          //F
+                            0.5*t*t,t,                                  //B
+                            0.0,                                        //Ut
                             Yaw_angle,(ICM_Gz - ICM_Gz_offset));        //Z_1,Z_2
-    Kalman_2_cal(&Gz_Kalman_BMI,1.0,t,0.0,1.0,                      //F
-                                0.5*t*t,t,                          //B
-                                0.0,                                //Ut
+    Kalman_2_cal(&Gz_Kalman_BMI,1.0,t,0.0,1.0,                                  //F
+                                0.5*t*t,t,                                      //B
+                                0.0,                                            //Ut
                                 Yaw_angle_BMI,(BMI_Gz - BMI_Gz_offset));        //Z_1,Z_2
     Gz = (Gz_Kalman_BMI.X[1] + Gz_Kalman_ICM.X[1]) / 2.0f;
     Yaw += Gz * t;
