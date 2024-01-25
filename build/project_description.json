@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "ESP-FLY-F",
-    "project_version":    "7b91aa2-dirty",
+    "project_version":    "041c8db-dirty",
     "project_path":       "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F",
     "idf_path":           "C:/Users/70435/esp/esp-idf",
     "build_dir":          "C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build",

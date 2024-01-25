@@ -17,6 +17,7 @@
 #define CS_BMI270 48
 #define CS_BMP388 14
 #define CS_BOX    3
+#define CS_7456E  8
 
 void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk);
 void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle);
