@@ -3,6 +3,8 @@
 
 #include "bsp_spi.h"
 
+#define SENSOR_HOST         SPI_HOST
+#define SENSOR_SPI_MODE     0
 /*ICM-42688p Register Map*/
 //BANK 0
 #define DEVICE_CONFIG         0x11
@@ -223,6 +225,10 @@
 #define CHIP_ID               0x00
 
 /*BMP388 Register Map*/
+
+#define CS_42688P     10
+#define CS_BMI270     48
+#define CS_BMP388     14
 
 void sensor_init(void);
 void ICM_42688P_init(void);

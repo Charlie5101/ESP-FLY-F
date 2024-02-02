@@ -66,10 +66,11 @@ $<TARGET_FILE:__idf_wifi_provisioning>
 $<TARGET_FILE:__idf_main>
 $<TARGET_FILE:__idf_GPS>
 $<TARGET_FILE:__idf_Kalman>
+$<TARGET_FILE:__idf_bsp_spi>
+$<TARGET_FILE:__idf_OSD>
 $<TARGET_FILE:__idf_PID>
 $<TARGET_FILE:__idf_RGB_LED>
 $<TARGET_FILE:__idf_bat_adc>
-$<TARGET_FILE:__idf_bsp_spi>
 $<TARGET_FILE:__idf_black_box>
 $<TARGET_FILE:__idf_bsp_gpio>
 $<TARGET_FILE:__idf_bsp_iic>

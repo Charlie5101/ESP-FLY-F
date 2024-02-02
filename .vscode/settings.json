@@ -36,7 +36,9 @@
     "esp_wifi.h": "c",
     "sockets.h": "c",
     "esp_ota_ops.h": "c",
-    "esp_crt_bundle.h": "c"
+    "esp_crt_bundle.h": "c",
+    "sensor.h": "c",
+    "black_box.h": "c"
   },
   "idf.flashType": "JTAG",
   "idf.flashBaudRate": "921600"

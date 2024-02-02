@@ -6,6 +6,7 @@
 
 //Mutex Lock Handle
 SemaphoreHandle_t SPI_Mutex_Lock;
+SemaphoreHandle_t SPI_SECOND_Mutex_Lock;
 
 /**
  * @brief 
@@ -13,43 +14,55 @@ SemaphoreHandle_t SPI_Mutex_Lock;
  * @param mosi_pin 
  * @param miso_pin 
  * @param spi_clk 
- */
-void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
+ */ 
+void spi_bus_init(uint8_t spi_host,uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk,uint32_t max_tran_size)
 {
-  //Mutex Lock
-  SPI_Mutex_Lock = xSemaphoreCreateMutex();
-  if(SPI_Mutex_Lock == NULL)
+  if(spi_host == SPI_HOST)
   {
-    ESP_LOGE("SPI","Mutex Lock Create Fail......");
+    //Mutex Lock
+    SPI_Mutex_Lock = xSemaphoreCreateMutex();
+    if(SPI_Mutex_Lock == NULL)
+    {
+      ESP_LOGE("SPI","Mutex Lock Create Fail......");
+    }
+    xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+
+    spi_bus_config_t bus_conf = {
+      .mosi_io_num = mosi_pin,
+      .miso_io_num = miso_pin,
+      .sclk_io_num = spi_clk,
+      .quadhd_io_num = -1,
+      .quadwp_io_num = -1,
+      .max_transfer_sz = max_tran_size,
+    };
+    //init spi bus
+    spi_bus_initialize(spi_host,&bus_conf,SPI_DMA_CH_AUTO);
+
+    xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
   }
-  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+  else if(spi_host == SPI_SECOND_HOST)
+  {
+    //Mutex Lock
+    SPI_SECOND_Mutex_Lock = xSemaphoreCreateMutex();
+    if(SPI_SECOND_Mutex_Lock == NULL)
+    {
+      ESP_LOGE("SPI","Mutex Lock Create Fail......");
+    }
+    xSemaphoreTake(SPI_SECOND_Mutex_Lock,portMAX_DELAY);     //Lock
 
-  spi_bus_config_t bus_conf = {
-    .mosi_io_num = mosi_pin,
-    .miso_io_num = miso_pin,
-    .sclk_io_num = spi_clk,
-    .quadhd_io_num = -1,
-    .quadwp_io_num = -1,
-    .max_transfer_sz = 4092 * 3,
-  };
-  //init spi bus
-  spi_bus_initialize(SPI_HOST,&bus_conf,SPI_DMA_CH_AUTO);
-  //CS pull up
-  gpio_set_direction(CS_42688P, GPIO_MODE_OUTPUT);
-  gpio_set_level(CS_42688P, 1);
+    spi_bus_config_t bus_conf = {
+      .mosi_io_num = mosi_pin,
+      .miso_io_num = miso_pin,
+      .sclk_io_num = spi_clk,
+      .quadhd_io_num = -1,
+      .quadwp_io_num = -1,
+      .max_transfer_sz = max_tran_size,
+    };
+    //init spi bus
+    spi_bus_initialize(spi_host,&bus_conf,SPI_DMA_CH_AUTO);
 
-  //BMI270 switch into SPI Mode
-  gpio_set_direction(CS_BMI270, GPIO_MODE_OUTPUT);
-  gpio_set_level(CS_BMI270, 0);
-  gpio_set_level(CS_BMI270, 1);
-
-  gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
-  gpio_set_level(CS_BMP388, 1);
-
-  gpio_set_direction(CS_BOX, GPIO_MODE_OUTPUT);
-  gpio_set_level(CS_BOX, 1);
-
-  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
+    xSemaphoreGive(SPI_SECOND_Mutex_Lock);     //UNLock
+  }
 }
 
 /**
@@ -58,25 +71,48 @@ void spi_bus_init(uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk)
  * @param cs_io 
  * @param dev_handle 
  */
-void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle)
+void spi_reg_device_to_bus(uint8_t spi_host,uint8_t queue_size,spi_device_handle_t *dev_handle,uint32_t clock_speed_hz,uint8_t mode)
 {
-  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+  if(spi_host == SPI_HOST)
+  {
+    xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
 
-  spi_device_interface_config_t device_conf = {
-    .clock_speed_hz = 10 * 1000000,
-    .mode = 0,
-    .spics_io_num = -1,
-    .queue_size = queue_size,
-    .command_bits = 0,
-    .address_bits = 0,
-    .input_delay_ns = 0,
-    .dummy_bits = 0,
-  };
+    spi_device_interface_config_t device_conf = {
+      .clock_speed_hz = clock_speed_hz,
+      .mode = mode,
+      .spics_io_num = -1,
+      .queue_size = queue_size,
+      .command_bits = 0,
+      .address_bits = 0,
+      .input_delay_ns = 0,
+      .dummy_bits = 0,
+    };
 
-  //register device connect to device
-  spi_bus_add_device(SPI_HOST,&device_conf,dev_handle);
+    //register device connect to device
+    spi_bus_add_device(spi_host,&device_conf,dev_handle);
 
-  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
+    xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
+  }
+  else if(spi_host == SPI_SECOND_HOST)
+  {
+    xSemaphoreTake(SPI_SECOND_Mutex_Lock,portMAX_DELAY);     //Lock
+
+    spi_device_interface_config_t device_conf = {
+      .clock_speed_hz = clock_speed_hz,
+      .mode = 0,
+      .spics_io_num = -1,
+      .queue_size = queue_size,
+      .command_bits = 0,
+      .address_bits = 0,
+      .input_delay_ns = 0,
+      .dummy_bits = 0,
+    };
+
+    //register device connect to device
+    spi_bus_add_device(spi_host,&device_conf,dev_handle);
+
+    xSemaphoreGive(SPI_SECOND_Mutex_Lock);     //UNLock
+  }
 }
 
 /**
@@ -88,9 +124,16 @@ void spi_reg_device_to_bus(uint8_t queue_size,spi_device_handle_t *dev_handle)
  * @param spi_rx_buffer 
  * @param rx_data_len 
  */
-void spi_connect_start(uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t len,void *txbuffer,void * rxbuffer)
+void spi_connect_start(uint8_t spi_host,uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t len,void *txbuffer,void * rxbuffer)
 {
-  xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+  if(spi_host == SPI_HOST)
+  {
+    xSemaphoreTake(SPI_Mutex_Lock,portMAX_DELAY);     //Lock
+  }
+  else if(spi_host == SPI_SECOND_HOST)
+  {
+    xSemaphoreTake(SPI_SECOND_Mutex_Lock,portMAX_DELAY);     //Lock
+  }
 
   spi_transaction_t t = {0};
   t.length = len;
@@ -101,7 +144,15 @@ void spi_connect_start(uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t le
   // ESP_ERROR_CHECK(spi_device_polling_transmit(icm_42688p,&t));
   gpio_set_level(cs_io, 1);
 
-  xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
+  if(spi_host == SPI_HOST)
+  {
+    xSemaphoreGive(SPI_Mutex_Lock);     //UNLock
+  }
+  else if(spi_host == SPI_SECOND_HOST)
+  {
+    xSemaphoreGive(SPI_SECOND_Mutex_Lock);     //UNLock
+  }
+  
 }
 
 /**

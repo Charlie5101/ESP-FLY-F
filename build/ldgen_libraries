@@ -66,10 +66,11 @@ C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/wifi_provisioning/libwi
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/main/libmain.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/GPS/libGPS.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/Kalman/libKalman.a
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_spi/libbsp_spi.a
+C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/OSD/libOSD.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/PID/libPID.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/RGB_LED/libRGB_LED.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bat_adc/libbat_adc.a
-C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_spi/libbsp_spi.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/black_box/libblack_box.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_gpio/libbsp_gpio.a
 C:/Users/70435/Desktop/ESP_Learn/ESP-FLY-F/build/esp-idf/bsp_iic/libbsp_iic.a

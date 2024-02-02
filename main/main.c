@@ -126,7 +126,10 @@ uint8_t app_main(void)
   }
   ESP_ERROR_CHECK(ret);
   //peripherals init
-  spi_bus_init(SPI_MOSI,SPI_MISO,SPI_SCLK);
+  spi_bus_init(SPI_HOST,SPI_MOSI,SPI_MISO,SPI_SCLK,4092 * 3);
+#if INDICATOR_MODE == SPI_INDICATOR
+  spi_bus_init(SPI_SECOND_HOST,indicator_io,-1,-1,4092);
+#endif
   //Create semaphores
 
   //Create tasks
