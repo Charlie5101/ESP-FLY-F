@@ -25,7 +25,7 @@ void imu_timer_create(void)
   ESP_ERROR_CHECK(gptimer_new_timer(&imu_timer_cfg,&imu_timer));
 
   gptimer_alarm_config_t imu_timer_alarm_cfg = {
-    .alarm_count = 940 * 2,
+    .alarm_count = 1000,   //1000
     .reload_count = 0,
     .flags.auto_reload_on_alarm = true,
   };

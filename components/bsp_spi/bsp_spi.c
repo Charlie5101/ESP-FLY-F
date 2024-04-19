@@ -15,7 +15,7 @@ SemaphoreHandle_t SPI_SECOND_Mutex_Lock;
  * @param miso_pin 
  * @param spi_clk 
  */ 
-void spi_bus_init(uint8_t spi_host,uint8_t mosi_pin,uint8_t miso_pin,uint8_t spi_clk,uint32_t max_tran_size)
+void spi_bus_init(uint8_t spi_host,int8_t mosi_pin,int8_t miso_pin,int8_t spi_clk,uint32_t max_tran_size)
 {
   if(spi_host == SPI_HOST)
   {
@@ -124,7 +124,7 @@ void spi_reg_device_to_bus(uint8_t spi_host,uint8_t queue_size,spi_device_handle
  * @param spi_rx_buffer 
  * @param rx_data_len 
  */
-void spi_connect_start(uint8_t spi_host,uint8_t cs_io,spi_device_handle_t *dev_handle,uint32_t len,void *txbuffer,void * rxbuffer)
+void spi_connect_start(uint8_t spi_host,int8_t cs_io,spi_device_handle_t *dev_handle,uint32_t len,void *txbuffer,void * rxbuffer)
 {
   if(spi_host == SPI_HOST)
   {
@@ -139,10 +139,13 @@ void spi_connect_start(uint8_t spi_host,uint8_t cs_io,spi_device_handle_t *dev_h
   t.length = len;
   t.tx_buffer = txbuffer;
   t.rx_buffer = rxbuffer;
-  gpio_set_level(cs_io, 0);
-  spi_device_polling_transmit(*dev_handle,&t);
+  if(cs_io != -1)
+    gpio_set_level(cs_io, 0);
+  // spi_device_polling_transmit(*dev_handle,&t);
+  spi_device_transmit(*dev_handle,&t);
   // ESP_ERROR_CHECK(spi_device_polling_transmit(icm_42688p,&t));
-  gpio_set_level(cs_io, 1);
+  if(cs_io != -1)
+    gpio_set_level(cs_io, 1);
 
   if(spi_host == SPI_HOST)
   {

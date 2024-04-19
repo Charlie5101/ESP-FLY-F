@@ -251,8 +251,10 @@ void Kalman_2_cal(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
                     Kalman->P[1][1] * (temp[1][1]);
   //4.step  Cal X
   float Temp_X[2];
-  Temp_X[0] = Kalman->X[0];
-  Temp_X[1] = Kalman->X[1];
+//   Temp_X[0] = Kalman->X[0];
+//   Temp_X[1] = Kalman->X[1];
+  Temp_X[0] = Kalman->X_Pred[0];
+  Temp_X[1] = Kalman->X_Pred[1];
   float temp_x[2];
   temp_x[0] = Z_1 - (Kalman->H[0][0] * Temp_X[0] + Kalman->H[0][1] * Temp_X[1]);
   temp_x[1] = Z_2 - (Kalman->H[1][0] * Temp_X[1] + Kalman->H[1][1] * Temp_X[1]);

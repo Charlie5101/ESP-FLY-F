@@ -230,6 +230,24 @@
 #define CS_BMI270     48
 #define CS_BMP388     14
 
+//Kalman Filter
+typedef struct imu_Kalman
+{
+  float A[6][6];
+  float B[6][3];
+  float Q[6][6];
+  float R[6][6];
+  float H[6][6];  //3*6
+  float P[6][6];
+  float K[6][6];  //6*3
+
+  float Ut[3][3];
+
+  float X_hat[6][3];
+
+  float Z[6][3];  //3*3
+}imu_Kalman;
+
 void sensor_init(void);
 void ICM_42688P_init(void);
 float ICM_42688P_read_Temp(void);
@@ -245,5 +263,43 @@ void BMI270_read_GYRO(float *Gx,float *Gy,float *Gz);
 void BMI270_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
 void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B);
 void BMP388_init(void);
+
+void imu_kalman_init(imu_Kalman *Kalman,float t,
+                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                        float R_0,float R_1,float R_2);
+
+void imu_kalman_cal(imu_Kalman *Kalman, float A_0_0,float A_0_1,float A_1_0,float A_1_1,
+                                        float A_2_2,float A_2_3,float A_3_2,float A_3_3,
+                                        float A_4_4,float A_4_5,float A_5_4,float A_5_5,
+
+                                        float B_0_0,float B_1_0,
+                                        float B_2_1,float B_3_1,
+                                        float B_4_2,float B_5_2,
+
+                                        float U_1,float U_2,float U_3,
+                                        float Z_1,float Z_2,float Z_3);
+
+void imu_kalman_cal_d(imu_Kalman *Kalman, float t,
+                                          float U_roll,float U_pitch,float U_yaw,
+                                          float Z_droll,float Z_dpitch,float Z_dyaw);
+
+void imu_kalman_d2_init(imu_Kalman *Kalman,float t,
+                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                        float R_0_0,float R_0_1,float R_1_0,float R_1_1,
+                                        float R_2_2,float R_2_3,float R_3_2,float R_3_3,
+                                        float R_4_4,float R_4_5,float R_5_4,float R_5_5);
+
+void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
+                                          float U_roll,float U_pitch,float U_yaw,
+                                          float Z_droll,float Z_dpitch,float Z_dyaw,
+                                          float Z_roll,float Z_pitch,float Z_yaw);
+
+void ICM_Get_R_Matrix(float *X,float *Y,float *Z);
 
 #endif

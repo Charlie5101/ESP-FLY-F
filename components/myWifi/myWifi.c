@@ -8,6 +8,21 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_crt_bundle.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+typedef enum{
+  SOCKET_INIT,
+  SOCKET_CREATE,
+  SOCKET_CONNECT,
+  SOCKET_WAIT,
+  SOCKET_DISCONNECT,
+}Socket_State_t;
+
+Socket_State_t socket_service_state;
+SemaphoreHandle_t Socket_ERR;
+
+bool AP_CONNECT_STATE = false;
 
 static const char *TAG = "My Wifi";
 
@@ -18,6 +33,8 @@ int addr_family = 0;
 int ip_protocol = 0;
 struct sockaddr_in dest_addr;
 int sock;
+
+uint8_t AP_retry_num = 0;
 
 esp_event_handler_instance_t instance_any_id;
 esp_event_handler_instance_t instance_got_ip;
@@ -42,7 +59,16 @@ void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *
       //   } else {
       //       xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
       //   }
-        ESP_LOGI(TAG,"connect to the AP fail");
+      if(AP_retry_num < MAX_RETRY_TIMES)
+      {
+        esp_wifi_connect();
+        AP_retry_num++;
+        ESP_LOGW(TAG,"Retry connect to the AP......");
+      }
+      else
+      {
+        ESP_LOGW(TAG,"connect to the AP fail");
+      }
       break;
     default:
       break;
@@ -57,6 +83,7 @@ void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *
       ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
       // s_retry_num = 0;
       // xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+      AP_CONNECT_STATE = true;
       break;
     default:
       break;
@@ -106,9 +133,89 @@ void myWifi_stop(void)
   ESP_ERROR_CHECK(esp_wifi_stop());
 }
 
+void Socket_Service(void)
+{
+  switch (socket_service_state)
+  {
+  case SOCKET_INIT:
+    ESP_LOGI("Socket_Service:", "SOCKET_INIT");
+    //wait WIFI AP connect
+    while(AP_CONNECT_STATE != true)
+    {
+      vTaskDelay(500);
+    }
+    inet_pton(AF_INET, host_ip, &dest_addr.sin_addr);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(Port);
+    addr_family = AF_INET;
+    ip_protocol = IPPROTO_IP;
+
+    socket_service_state = SOCKET_CREATE;
+    break;
+
+  case SOCKET_CREATE:
+    ESP_LOGI("Socket_Service:", "SOCKET_CREATE");
+    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+    while(sock < 0)
+    {
+      ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
+      vTaskDelay(1000);
+      ESP_LOGW(TAG, "Retry to create socket......");
+      sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+    }
+    ESP_LOGI(TAG, "Socket created, connecting to %s:%d", host_ip, Port);
+
+    socket_service_state = SOCKET_CONNECT;
+    break;
+
+  case SOCKET_CONNECT:
+    ESP_LOGI("Socket_Service:", "SOCKET_CONNECT");
+    int err;
+    err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    while(err != 0)
+    {
+      ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
+      vTaskDelay(1000);
+      ESP_LOGW(TAG, "Socket Retry to connect......");
+      close(sock);
+      vTaskDelay(100);
+      sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+      err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    }
+    ESP_LOGI(TAG, "Successfully connected");
+
+    socket_service_state = SOCKET_WAIT;
+    break;
+
+  case SOCKET_WAIT:
+    if(xSemaphoreTake(Socket_ERR,0) == pdTRUE)
+    {
+      socket_service_state = SOCKET_DISCONNECT;
+    }
+    break;
+
+  case SOCKET_DISCONNECT:
+    ESP_LOGI("Socket_Service:", "SOCKET_DISCONNECT");
+    socket_service_state = SOCKET_INIT;
+    break;
+  default:
+    break;
+  }
+}
+
 void my_wifi_vofa_init(void)
 {
-  static const char *payload = "Message from ESP32 \n";
+  Socket_ERR = xSemaphoreCreateBinary();
+  if(Socket_ERR == NULL)
+  {
+    ESP_LOGE(TAG, "Socket_ERR Semap Create Fail");
+  }
+  //wait WIFI AP connect
+  while(AP_CONNECT_STATE != true)
+  {
+    vTaskDelay(500);
+  }
+
   inet_pton(AF_INET, host_ip, &dest_addr.sin_addr);
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_port = htons(Port);
@@ -118,46 +225,68 @@ void my_wifi_vofa_init(void)
   int err;
 
   sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-  if (sock < 0) {
-    ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-    while(1)
-    {
-      vTaskDelay(100);
-    }
+  while(sock < 0)
+  {
+    ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
+    vTaskDelay(1000);
+    ESP_LOGW(TAG, "Retry to create socket......");
+    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
   }
   ESP_LOGI(TAG, "Socket created, connecting to %s:%d", host_ip, Port);
 
   err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-  if (err != 0) {
-    ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-    while(1)
-    {
-      vTaskDelay(100);
-    }
+  while(err != 0)
+  {
+    ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
+    vTaskDelay(1000);
+    ESP_LOGW(TAG, "Socket Retry to connect......");
+    close(sock);
+    vTaskDelay(100);
+    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+    err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
   }
   ESP_LOGI(TAG, "Successfully connected");
 
-  err = send(sock, payload, strlen(payload), 0);
-  if (err < 0) {
-    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-    while(1)
-    {
-      vTaskDelay(100);
-    }
+  socket_service_state = SOCKET_WAIT;
+}
+
+void myWifi_Socket_Re_Connect(void)
+{
+  int err;
+  err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+  while(err != 0)
+  {
+    ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
+    vTaskDelay(1000);
+    ESP_LOGW(TAG, "Socket Retry to connect......");
   }
+  ESP_LOGI(TAG, "Successfully connected");
 }
 
 void myWifi_vofa_send(char *payload,uint32_t len)
 {
-  // int err = send(sock, payload, strlen(payload), 0);
-  int err = send(sock, payload, len, 0);
-  if (err < 0) {
-    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-    while(1)
-    {
-      vTaskDelay(1000);
+  if(socket_service_state == SOCKET_WAIT)
+  {
+    int err = send(sock, payload, len, 0);
+    if (err < 0) {
+      ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+      if(socket_service_state == SOCKET_WAIT)
+      {
+        xSemaphoreGive(Socket_ERR);
+        ESP_LOGW(TAG, "Socket_ERR Give");
+      }
     }
   }
+  // int err = send(sock, payload, strlen(payload), 0);
+  // int err = send(sock, payload, len, 0);
+  // if (err < 0) {
+  //   ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+  //   if(socket_service_state == SOCKET_WAIT)
+  //   {
+  //     xSemaphoreGive(Socket_ERR);
+  //     ESP_LOGW(TAG, "Socket_ERR Give");
+  //   }
+  // }
 
   // if (sock != -1) {
   //   ESP_LOGE(TAG, "Shutting down socket and restarting...");
@@ -168,14 +297,16 @@ void myWifi_vofa_send(char *payload,uint32_t len)
 
 char* myWifi_vofa_recv(void)
 {
+  while(socket_service_state != SOCKET_WAIT)
+  {
+    vTaskDelay(1000);
+  }
   int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
   // Error occurred during receiving
   if (len < 0) {
     ESP_LOGE(TAG, "recv failed: errno %d", errno);
-    while(1)
-    {
-      vTaskDelay(100);
-    }
+    if(socket_service_state == SOCKET_WAIT)
+      xSemaphoreGive(Socket_ERR);
   }
   // Data received
   else {
@@ -185,11 +316,12 @@ char* myWifi_vofa_recv(void)
     return rx_buffer;
   }
 
-  if (sock != -1) {
-    ESP_LOGE(TAG, "Shutting down socket and restarting...");
-    shutdown(sock, 0);
-    close(sock);
-  }
+  // if (sock != -1) {
+  //   ESP_LOGE(TAG, "Shutting down socket and restarting...");
+  //   shutdown(sock, 0);
+  //   close(sock);
+  // }
+  return rx_buffer;
 }
 
 void myWifi_vofa_stop(void)

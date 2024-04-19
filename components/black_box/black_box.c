@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define BLACK_BOX_SPEED_HZ          10 * 1000000  //Hz
+#define BLACK_BOX_SPEED_HZ          40 * 1000000  //Hz
 
 static const char* TAG = "black box:";
 

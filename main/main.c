@@ -18,7 +18,7 @@
 /*task config*/
 #define Task_MAIN_Stack       4096
 #define Task_MAIN_Prio        3
-#define Task_sensor_Stack     4096 * 3
+#define Task_sensor_Stack     4096 * 8
 #define Task_sensor_Prio      3
 #define Task_black_box_Stack  4096
 #define Task_black_box_Prio   3
@@ -96,15 +96,20 @@ float ICM_temp = 0.0f;
 float BMI_temp = 0.0f;
 float ICM_Ax,ICM_Ay,ICM_Az,ICM_Gx,ICM_Gy,ICM_Gz;
 float BMI_Ax,BMI_Ay,BMI_Az,BMI_Gx,BMI_Gy,BMI_Gz;
-float Yaw_angle = 0.0,Yaw_speed = 0.0;
-float Yaw_angle_BMI = 0.0;
 float t = 0.0001;
-myKalman_2 Gz_Kalman_ICM;
-myKalman_2 Gz_Kalman_BMI;
-// myKalman_2 Gz_Kalman;
+
+float ICM_Roll = 0.0;
+float ICM_Pitch = 0.0;
+float ICM_Yaw = 0.0;
+
+float Gx = 0.0;
+float Gy = 0.0;
 float Gz = 0.0;
+float Roll = 0.0;
+float Pitch = 0.0;
 float Yaw = 0.0;
-float Yaw_Kalman_angle = 0.0;
+float ARoll = 0.0;
+float APitch = 0.0;
 
 float ICM_Gx_offset = 0.0;
 float BMI_Gx_offset = 0.0;
@@ -112,6 +117,8 @@ float ICM_Gy_offset = 0.0;
 float BMI_Gy_offset = 0.0;
 float ICM_Gz_offset = 0.25278f;     //0.111362f
 float BMI_Gz_offset = 0.11278;
+
+imu_Kalman ICM_Kalman = {0};
 
 indicator_bre indicator_Bre;
 
@@ -194,60 +201,204 @@ void Task_MAIN(void *arg)
  */
 void Task_sensor(void *arg)
 {
+  static float ICM_R0 = 0;
+  static float ICM_R1 = 0;
+  static float ICM_R2 = 0;
   sensor_init();
   ICM_42688P_Get_Bais(&ICM_Gx_offset,&ICM_Gy_offset,&ICM_Gz_offset);
   BMI270_Get_Bais(&BMI_Gx_offset,&BMI_Gy_offset,&BMI_Gz_offset);
-  Kalman_2_init(&Gz_Kalman_ICM,1.0,t,0.0,1.0,               //F
-                           0.5*t*t,t,                   //B
-                           1.0,0.0,0.0,1.0,             //H
-                           0.1,0.0,0.0,0.1,             //Q
-                           100.0,0.0,0.0,100.0,         //R
-                           0.0,0.0,                     //X
-                           0.0);                        //Ut
-  Kalman_2_init(&Gz_Kalman_BMI, 1.0,t,0.0,1.0,               //F
-                                0.5*t*t,t,                   //B
-                                1.0,0.0,0.0,1.0,             //H
-                                0.1,0.0,0.0,0.1,             //Q
-                                1.0,0.0,0.0,1.0,             //R
-                                0.0,0.0,                     //X
-                                0.0);                        //Ut
-  // Kalman_2_init(&Gz_Kalman,     1.0,t,0.0,1.0,               //F
-  //                               0.5*t*t,t,                   //B
-  //                               1.0,0.0,0.0,1.0,             //H
-  //                               0.1,0.0,0.0,0.1,             //Q
-  //                               0.1,0.0,0.0,0.1,             //R
-  //                               0.0,0.0,                     //X
-  //                               0.0);                        //Ut
+  ESP_LOGI("sensor","Bais Get SUCCESS!");
+
+  // imu_kalman_init(&ICM_Kalman,t,
+  //                             0.1,  0.0,  0.0,  0.1,
+  //                             0.1,  0.0,  0.0,  0.1,
+  //                             0.1,  0.0,  0.0,  0.1,
+  //                             350.0,  35.0,  100.0);
+  ICM_Get_R_Matrix(&ICM_R0,&ICM_R1,&ICM_R2);
+  ESP_LOGI("sensor","ICM_R0 : %f",ICM_R0);
+  ESP_LOGI("sensor","ICM_R1 : %f",ICM_R1);
+  ESP_LOGI("sensor","ICM_R2 : %f",ICM_R2);
+  imu_kalman_d2_init(&ICM_Kalman,t,
+                              0.1,  0.0,  0.0,  0.1,
+                              0.1,  0.0,  0.0,  0.1,
+                              0.1,  0.0,  0.0,  0.1,
+
+                              ICM_R0,  0.0,  0.0,  ICM_R0,      //350.0,  0.0,  0.0,  350.0,
+                              ICM_R1,  0.0,  0.0,  ICM_R1,        //35.0,  0.0,  0.0,  35.0,
+                              ICM_R2,  0.0,  0.0,  ICM_R2);     //100.0,  0.0,  0.0,  100.0
+
   imu_timer_create();
   vTaskDelay(10000);
   uint32_t time_k = xTaskGetTickCount();
   imu_intr_enable_and_start();
+
+  //零速判断
+  static float zero_speed_dect_roll_time = 0;
+  static float zero_speed_dect_pitch_time = 0;
+  static float zero_speed_dect_yaw_time = 0;
+
+  static float IN_Roll = 0.0;
+  static float IN_Pitch = 0.0;
+  static float IN_Yaw = 0.0;
+
   for(;;)
   {
     xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
     imu_timer_stop();
     ICM_42688P_read_ACC_GYRO(&ICM_Ax,&ICM_Ay,&ICM_Az,&ICM_Gx,&ICM_Gy,&ICM_Gz);
-    BMI270_read_ACC_GYRO(&BMI_Ax,&BMI_Ay,&BMI_Az,&BMI_Gx,&BMI_Gy,&BMI_Gz);
+    // BMI270_read_ACC_GYRO(&BMI_Ax,&BMI_Ay,&BMI_Az,&BMI_Gx,&BMI_Gy,&BMI_Gz);
     t = 0.001 * (float)(xTaskGetTickCount() - time_k);
     time_k = xTaskGetTickCount();
-    Yaw_angle += (ICM_Gz - ICM_Gz_offset) * t;
-    Yaw_angle_BMI += (BMI_Gz - BMI_Gz_offset) * t;
-    Kalman_2_cal(&Gz_Kalman_ICM,1.0,t,0.0,1.0,                          //F
-                            0.5*t*t,t,                                  //B
-                            0.0,                                        //Ut
-                            Yaw_angle,(ICM_Gz - ICM_Gz_offset));        //Z_1,Z_2
-    Kalman_2_cal(&Gz_Kalman_BMI,1.0,t,0.0,1.0,                                  //F
-                                0.5*t*t,t,                                      //B
-                                0.0,                                            //Ut
-                                Yaw_angle_BMI,(BMI_Gz - BMI_Gz_offset));        //Z_1,Z_2
-    Gz = (Gz_Kalman_BMI.X[1] + Gz_Kalman_ICM.X[1]) / 2.0f;
-    Yaw += Gz * t;
-    // Kalman_2_cal(&Gz_Kalman,1.0,t,0.0,1.0,                      //F
-    //                             0.5*t*t,t,                          //B
-    //                             0.0,                                //Ut
-    //                             Yaw,Gz);        //Z_1,Z_2
-    ICM_temp = ICM_42688P_read_Temp();
-    BMI_temp = BMI270_read_Temp();
+
+
+
+    // //陀螺仪 kalman
+    // imu_kalman_cal_d(&ICM_Kalman,t,
+    //                               0.0,0.0,0.0,
+    //                               (ICM_Gx - ICM_Gx_offset),
+    //                               (ICM_Gy - ICM_Gy_offset),
+    //                               (ICM_Gz - ICM_Gz_offset));
+
+    // //加计 低通
+    // ARoll = atanf(ICM_Ay / ICM_Az) * ( 180.0 / 3.1415926 );
+    // APitch = -atanf(ICM_Ax / ( powf((ICM_Ay * ICM_Ay + ICM_Az * ICM_Az),0.5) )) * ( 180.0 / 3.1415926 );
+    
+    // //零速判断 + 零速下加计修正
+    // //roll
+    // if( fabsf( ICM_Kalman.X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time < 1.0 )
+    // {
+    //   zero_speed_dect_roll_time += t;
+    // }
+    // else if( fabsf( ICM_Kalman.X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time >= 1.0 )
+    // {
+    //   ICM_Kalman.X_hat[1][0] = 0;
+    //   // ICM_Kalman.X_hat[0][0] = Roll;
+    //   ICM_Kalman.X_hat[0][0] = ARoll;
+    // }
+    // else
+    // {
+    //   zero_speed_dect_roll_time = 0.0;
+    // }
+    // //pitch
+    // if( fabsf( ICM_Kalman.X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time < 1.0 )
+    // {
+    //   zero_speed_dect_pitch_time += t;
+    // }
+    // else if( fabsf( ICM_Kalman.X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time >= 1.0 )
+    // {
+    //   ICM_Kalman.X_hat[3][1] = 0;
+    //   // ICM_Kalman.X_hat[2][1] = Pitch;
+    //   ICM_Kalman.X_hat[2][1] = APitch;
+    // }
+    // else
+    // {
+    //   zero_speed_dect_pitch_time = 0.0;
+    // }
+    // //yaw
+    // if( fabsf( ICM_Kalman.X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time < 1.0 )
+    // {
+    //   zero_speed_dect_yaw_time += t;
+    // }
+    // else if( fabsf( ICM_Kalman.X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time >= 1.0 )
+    // {
+    //   ICM_Kalman.X_hat[5][2] = 0;
+    //   ICM_Kalman.X_hat[4][2] = Yaw;
+    // }
+    // else
+    // {
+    //   zero_speed_dect_yaw_time = 0.0;
+    // }
+    
+    // //数据读取
+    // Gx = ICM_Kalman.X_hat[1][0];
+    // Roll = ICM_Kalman.X_hat[0][0];
+    // Gy = ICM_Kalman.X_hat[3][1];
+    // Pitch = ICM_Kalman.X_hat[2][1];
+    // Gz = ICM_Kalman.X_hat[5][2];
+    // Yaw = ICM_Kalman.X_hat[4][2];
+
+    ICM_Roll += (ICM_Gx - ICM_Gx_offset) * t;
+    ICM_Pitch += (ICM_Gy - ICM_Gy_offset) * t;
+    ICM_Yaw += (ICM_Gz - ICM_Gz_offset) * t;
+    //加计 低通
+    ARoll = atanf(ICM_Ay / ICM_Az) * ( 180.0 / 3.1415926 );
+    APitch = -atanf(ICM_Ax / ( powf((ICM_Ay * ICM_Ay + ICM_Az * ICM_Az),0.5) )) * ( 180.0 / 3.1415926 );
+
+    //零速判断 + 零速下加计修正
+    //roll
+    if( fabsf( ICM_Kalman.X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time < 1.0 )
+    {
+      zero_speed_dect_roll_time += t;
+      IN_Roll = ICM_Roll;
+    }
+    else if( fabsf( ICM_Kalman.X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time >= 1.0 )
+    {
+      ICM_Kalman.X_hat[1][0] = 0;
+      // ICM_Kalman.X_hat[0][0] = Roll;
+      ICM_Kalman.X_hat[0][0] = Roll;
+      ICM_Roll = ICM_Kalman.X_hat[0][0];
+      IN_Roll = ARoll;
+    }
+    else
+    {
+      zero_speed_dect_roll_time = 0.0;
+      IN_Roll = ICM_Roll;
+    }
+    //pitch
+    if( fabsf( ICM_Kalman.X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time < 1.0 )
+    {
+      zero_speed_dect_pitch_time += t;
+      IN_Pitch = ICM_Pitch;
+    }
+    else if( fabsf( ICM_Kalman.X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time >= 1.0 )
+    {
+      ICM_Kalman.X_hat[3][1] = 0;
+      // ICM_Kalman.X_hat[2][1] = Pitch;
+      ICM_Kalman.X_hat[2][1] = Pitch;
+      ICM_Pitch = ICM_Kalman.X_hat[2][1];
+      IN_Pitch = APitch;
+    }
+    else
+    {
+      zero_speed_dect_pitch_time = 0.0;
+      IN_Pitch = ICM_Pitch;
+    }
+    //yaw
+    if( fabsf( ICM_Kalman.X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time < 1.0 )
+    {
+      zero_speed_dect_yaw_time += t;
+    }
+    else if( fabsf( ICM_Kalman.X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time >= 1.0 )
+    {
+      ICM_Kalman.X_hat[5][2] = 0;
+      ICM_Kalman.X_hat[4][2] = Yaw;
+    }
+    else
+    {
+      zero_speed_dect_yaw_time = 0.0;
+    }
+
+    //陀螺仪 kalman
+    imu_kalman_cal_d2(&ICM_Kalman,t,
+                                  0.0,0.0,0.0,
+                                  (ICM_Gx - ICM_Gx_offset),
+                                  (ICM_Gy - ICM_Gy_offset),
+                                  (ICM_Gz - ICM_Gz_offset),
+                                  IN_Roll,
+                                  IN_Pitch,
+                                  ICM_Yaw);
+    
+    //数据读取
+    Gx = ICM_Kalman.X_hat[1][0];
+    Roll = ICM_Kalman.X_hat[0][0];
+    Gy = ICM_Kalman.X_hat[3][1];
+    Pitch = ICM_Kalman.X_hat[2][1];
+    Gz = ICM_Kalman.X_hat[5][2];
+    Yaw = ICM_Kalman.X_hat[4][2];
+
+    
+    // ICM_temp = ICM_42688P_read_Temp();
+    // BMI_temp = BMI270_read_Temp();
     imu_timer_restart();
     // ICM_42688P_read_FIFO();
     // vTaskDelay(1);
@@ -375,7 +526,7 @@ void Task_receiver(void *arg)
   }
 }
 
-#define WIFI_LINE_NUM   10
+#define WIFI_LINE_NUM   11
 /**
  * @brief 
  * 
@@ -390,7 +541,7 @@ void Task_UpMonitor(void *arg)
   }Line;
   myWifi_init();
   myWifi_start();
-  vTaskDelay(5000);
+  vTaskDelay(1000);
   my_wifi_vofa_init();
   vTaskDelay(1000);
   Line.out[WIFI_LINE_NUM * 4] = 0x00;
@@ -413,18 +564,20 @@ void Task_UpMonitor(void *arg)
     // Line.data[3] = BMI_Gz;
     // Line.data[4] = Gz_Kalman_BMI.X[1];
 
-    Line.data[0] = Gz;
-    Line.data[1] = Yaw;
-    Line.data[2] = ICM_Gz;
-    Line.data[3] = BMI_Gx;
-    Line.data[4] = Gz_Kalman_ICM.X[0];
-    Line.data[5] = Gz_Kalman_BMI.X[0];
-    Line.data[6] = Gz_Kalman_ICM.X[1];
-    Line.data[7] = Gz_Kalman_BMI.X[1];
-    Line.data[8] = ICM_temp;
-    Line.data[9] = BMI_temp;
+    Line.data[0] = Gx;
+    Line.data[1] = Roll;
+    Line.data[2] = ICM_Gx;
+    Line.data[3] = Gy;
+    Line.data[4] = Pitch;
+    Line.data[5] = ICM_Gy;
+    Line.data[6] = Gz;
+    Line.data[7] = Yaw;
+    Line.data[8] = ICM_Gz;
+    Line.data[9] = ARoll;
+    Line.data[10] = APitch;
 
     myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
+    Socket_Service();
     vTaskDelay(1);
   }
 }
