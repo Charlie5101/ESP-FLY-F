@@ -46,6 +46,69 @@ They are not used or needed when building with CMake and idf.py.
 |   ├── GPS
 |   ├── RGB LED
 |   ├── Receiver
+|   ├── PID
+|	└── DSHOT
+└── ground
+    ├── INT
+    |   └── Control
+    ├── SPI
+    ├── UART
+    ├── IIC
+    ├── PWM
+    ├── ADC
+    └── GPIO
+```
+### System Struct
+```
+└── main.c
+    ├── main
+    |	├── Task Create
+    |	└── Task
+ 	└── Task MAIN
+    |	└── Task
+    └── Task sensor
+    └── Task black box
+    └── Task indicator
+    |	└── indicator
+    |    	└── SPI/RMT
+    └── Task buzzer
+    └── Task bat adc
+    └── Task motor
+    └── Task GPS
+    └── Task RGB LED
+    └── Task Uppermonitor
+    └── Task Wifi Rec
+```
+
+### File Call Struct
+```
+├── main.c
+|   ├── main
+|   |	├── Task Create
+|   |	└── Task
+|	└── Task MAIN
+|   |	└── Task
+|   └── Task sensor
+|   └── Task black box
+|   └── Task indicator
+|   |	└── SPI/RMT
+|   └── Task buzzer
+|   └── Task bat adc
+|   └── Task motor
+|   └── Task GPS
+|   └── Task RGB LED
+|   └── Task Uppermonitor
+|   └── Task Wifi Rec
+├── Mid
+|   ├── sensor
+|   ├── black box
+|   ├── indicator
+|   ├── buzzer
+|   ├── bat_adc
+|   ├── motor
+|   ├── GPS
+|   ├── RGB LED
+|   ├── Receiver
 |   └── PID
 └── ground
     ├── INT
