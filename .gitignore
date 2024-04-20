@@ -1,5 +1,5 @@
 .devcontainer/
 .vscode/
 build/
-debug.log:
-sdkconfig.old:
+*.log
+*.old
