@@ -10,105 +10,6 @@
 SemaphoreHandle_t Indicator_Mutex_Lock;
 static const char* TAG = "indicator:";
 
-#if INDICATOR_MODE == RMT_INDICATOR
-
-LED_handle_t *indicator = NULL;
-
-void indicator_init()
-{
-  Indicator_Mutex_Lock = xSemaphoreCreateMutex();
-  if(Indicator_Mutex_Lock == NULL)
-  {
-    ESP_LOGE("Indicator","Mutex Lock Create Fail......"); 
-  }
-  xSemaphoreTake(Indicator_Mutex_Lock,portMAX_DELAY);     //Lock
-
-  ESP_LOGI(TAG,"Init");
-  rmt_init(indicator_io,indicator_channel);
-  LED_handle_cfg_t strip_cfg = LED_handle_DEFAULT_CONFIG(indicator_num,indicator_channel);
-  indicator = LED_handle_new_ws2812(&strip_cfg);
-  if (!indicator) {
-        ESP_LOGE(TAG, "install WS2812 driver failed");
-    }
-  //close indicator
-  ESP_ERROR_CHECK(indicator->clear(indicator, 100));
-
-  xSemaphoreGive(Indicator_Mutex_Lock);     //UNLock
-}
-
-void indicator_set(uint8_t R,uint8_t G,uint8_t B)
-{
-  xSemaphoreTake(Indicator_Mutex_Lock,portMAX_DELAY);     //Lock
-
-  //ESP_LOGI(TAG,"set");
-  indicator->set_pixel(indicator,0,R,G,B);
-  indicator->refresh(indicator,20);
-
-  xSemaphoreGive(Indicator_Mutex_Lock);     //UNLock
-}
-
-void indicator_breath_init(indicator_bre* Bre,uint8_t R,uint8_t G,uint8_t B,uint32_t len)
-{
-  Bre->Dir = 0;
-  Bre->Cnt = 0;
-  Bre->R = R;
-  Bre->G = G;
-  Bre->B = B;
-  Bre->Cnt_len = len;
-}
-
-void indicator_breath_set(indicator_bre* Bre,uint8_t R,uint8_t G,uint8_t B,uint32_t len)
-{
-  Bre->Dir = 0;
-  Bre->Cnt = 0;
-  Bre->R = R;
-  Bre->G = G;
-  Bre->B = B;
-  Bre->Cnt_len = len;
-}
-
-void indicator_breath_cal(indicator_bre* Bre)
-{
-  switch (Bre->Dir)
-  {
-    case 0:
-      if(Bre->Cnt < Bre->Cnt_len)
-      {
-        Bre->cal_R = (uint8_t)(Bre->R * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        Bre->cal_G = (uint8_t)(Bre->G * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        Bre->cal_B = (uint8_t)(Bre->B * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        indicator_set(Bre->cal_R,Bre->cal_G,Bre->cal_B);
-        Bre->Cnt++;
-      }
-      else
-      {
-        Bre->Dir = 1;
-      }
-      break;
-    case 1:
-      if(Bre->Cnt > 0)
-      {
-        Bre->cal_R = (uint8_t)(Bre->R * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        Bre->cal_G = (uint8_t)(Bre->G * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        Bre->cal_B = (uint8_t)(Bre->B * ((float)Bre->Cnt / (float)Bre->Cnt_len));
-        indicator_set(Bre->cal_R,Bre->cal_G,Bre->cal_B);
-        Bre->Cnt--;
-      }
-      else
-      {
-        Bre->Dir = 0;
-      }
-      break;
-    case 2:
-    default:
-      break;
-  }
-}
-
-#endif
-
-#if INDICATOR_MODE == SPI_INDICATOR
-
 //spi device handle
 spi_device_handle_t indicator;
 
@@ -197,17 +98,8 @@ void indicator_set(uint8_t R,uint8_t G,uint8_t B)
 {
   uint8_t temp[24];
   uint8_t data[24+sizeof(reset_data)];
-  //ESP_LOGI(TAG,"set");
   cal_signal_RGB_data(R,G,B,temp);
-  // ESP_LOGI("","****************************");
-  // for(uint8_t i=0;i<24;i++)
-  //   ESP_LOGI("","%d",temp[i]);
-  // ESP_LOGI("","****************************");
   indicator_data_add_reset(data,temp);
-  // ESP_LOGI("","****************************");
-  // for(uint8_t i=0;i<24+sizeof(reset_data);i++)
-  //   ESP_LOGI("","%d",data[i]);
-  // ESP_LOGI("","****************************");
   indicator_set_pixel(data);
 }
 
@@ -268,5 +160,3 @@ void indicator_breath_cal(indicator_bre* Bre)
       break;
   }
 }
-
-#endif
