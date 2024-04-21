@@ -195,7 +195,7 @@ void Task_MAIN(void *arg)
 /**
  * @brief 
  * 
- * @param arg 
+ * @param arg
  */
 void Task_sensor(void *arg)
 {
