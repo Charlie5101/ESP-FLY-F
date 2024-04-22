@@ -1,8 +1,6 @@
 #ifndef MOTOR__
 #define MOTOR__
 
-#include "bsp_pwm.h"
-
 #define MOTOR_REFRESH_RATE        300
 #define MOTOR_RESOLUTION          LEDC_TIMER_14_BIT
 #define MOTOR_TIMER               LEDC_TIMER_0
@@ -27,7 +25,13 @@
 #define S3_IO                     5
 #define S4_IO                     6
 
+void DSHOT_init(void);
+void DSHOT_enable_channel(uint8_t id);
+void DSHOT_disable_channel(uint8_t id);
+void DSHOT_throttle_set(uint8_t id,uint16_t throttle);
+
 void motor_init(void);
+void servo_init(void);
 uint16_t Percent_to_Resolution(float target_duty);
 void motor_throttle_set(uint8_t id,float throttle);
 void servo_out_set(uint8_t id,float throttle);

@@ -1,5 +1,58 @@
 #include <stdio.h>
 #include "motor.h"
+#include "DSHOT.h"
+#include "bsp_pwm.h"
+
+#define DSHOT_PROT                DSHOT600
+
+int8_t motor_io[4] = {M1_IO, M2_IO, M3_IO, M4_IO};
+DSHOT_Channel_handle_t dshot_channal[4] = {NULL};
+DSHOT_encoder_handle_t dshot_encoder[4] = {NULL};
+
+void DSHOT_init()
+{
+  for(uint8_t i=0;i<4;i++)
+  {
+    create_dshot_channel(motor_io[i], DSHOT_PROT, &dshot_channal[i], &dshot_encoder[i]);
+  }
+  //enable
+  for(uint8_t i=0;i<4;i++)
+  {
+    enable_dshot_channel(dshot_channal[i]);
+  }
+}
+
+void DSHOT_enable_channel(uint8_t id)
+{
+  enable_dshot_channel(dshot_channal[id-1]);
+}
+
+void DSHOT_disable_channel(uint8_t id)
+{
+  disable_dshot_channel(dshot_channal[id-1]);
+}
+
+void DSHOT_throttle_set(uint8_t id,uint16_t throttle)
+{
+  switch(id)
+  {
+  case 1:
+    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 2:
+    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 3:
+    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 4:
+    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  default:
+    break;
+  }
+}
+
 
 void motor_init()
 {
@@ -7,7 +60,10 @@ void motor_init()
   pwm_init(MOTOR_TIMER,MOTOR_RESOLUTION,MOTOR_REFRESH_RATE,M2_IO,M2_CHANNEL,0,0);
   pwm_init(MOTOR_TIMER,MOTOR_RESOLUTION,MOTOR_REFRESH_RATE,M3_IO,M3_CHANNEL,0,0);
   pwm_init(MOTOR_TIMER,MOTOR_RESOLUTION,MOTOR_REFRESH_RATE,M4_IO,M4_CHANNEL,0,0);
+}
 
+void servo_init()
+{
   pwm_init(SERVO_TIMER,SERVO_RESOLUTION,SERVO_REFRESH_RATE,S1_IO,S1_CHANNEL,0,0);
   pwm_init(SERVO_TIMER,SERVO_RESOLUTION,SERVO_REFRESH_RATE,S2_IO,S2_CHANNEL,0,0);
   pwm_init(SERVO_TIMER,SERVO_RESOLUTION,SERVO_REFRESH_RATE,S3_IO,S3_CHANNEL,0,0);

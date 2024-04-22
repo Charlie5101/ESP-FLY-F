@@ -470,18 +470,34 @@ void Task_bat_adc(void *arg)
  */
 void Task_motor(void *arg)
 {
-  motor_init();
-  motor_throttle_set(1,100.0);
-  motor_throttle_set(2,75.0);
-  motor_throttle_set(3,50.0);
-  motor_throttle_set(4,25.0);
+  static uint16_t M1_throttle = 2047;
+
+  DSHOT_init();
+  // motor_init();
+  servo_init();
+  // motor_throttle_set(1,100.0);
+  // motor_throttle_set(2,75.0);
+  // motor_throttle_set(3,50.0);
+  // motor_throttle_set(4,25.0);
   servo_out_set(1,23.0);
   servo_out_set(2,35.0);
   servo_out_set(3,67.0);
   servo_out_set(4,89.0);
+  DSHOT_throttle_set(1,M1_throttle);
+  
+  vTaskDelay(100);
   for(;;)
   {
-    vTaskDelay(10);
+    // if(M1_throttle < 2000)
+    // {
+    //   M1_throttle += 10;
+    // }
+    // else
+    // {
+    //   M1_throttle = 0;
+    // }
+    // DSHOT_throttle_set(1,M1_throttle);
+    vTaskDelay(100);
   }
 }
 

@@ -2,8 +2,17 @@
 #define __DSHOT__
 
 // #include <stdint.h>
-// #include <stdbool.h>
+#include <stdbool.h>
 #include "bsp_rmt.h"
+
+#define DSHOT100        100 * 1000
+#define DSHOT300        300 * 1000
+#define DSHOT600        600 * 1000
+#define DSHOT1200       1200 * 1000
+
+typedef rmt_channel_handle_t DSHOT_Channel_handle_t;
+typedef rmt_encoder_handle_t DSHOT_encoder_handle_t;
+typedef rmt_sync_manager_handle_t DSHOT_sync_manager_handle_t;
 
 /**
  * @brief Throttle representation in DShot protocol
@@ -33,5 +42,11 @@ typedef struct {
  *      - ESP_OK if creating encoder successfully
  */
 esp_err_t rmt_new_dshot_esc_encoder(const dshot_esc_encoder_config_t *config, rmt_encoder_handle_t *ret_encoder);
+
+void create_dshot_channel(int8_t dshot_esc_gpio_num, uint32_t dshot_protocol, DSHOT_Channel_handle_t *esc_channel, DSHOT_encoder_handle_t *dshot_encoder);
+void install_dshot_sync_manager(DSHOT_Channel_handle_t *tx_channels, DSHOT_sync_manager_handle_t *synchro);
+void enable_dshot_channel(DSHOT_Channel_handle_t esc_channel);
+void disable_dshot_channel(DSHOT_Channel_handle_t esc_channel);
+void dshot_send(uint16_t esc_throttle,DSHOT_Channel_handle_t esc_channel,DSHOT_encoder_handle_t dshot_encoder);
 
 #endif
