@@ -44,9 +44,9 @@ typedef struct {
 esp_err_t rmt_new_dshot_esc_encoder(const dshot_esc_encoder_config_t *config, rmt_encoder_handle_t *ret_encoder);
 
 void create_dshot_channel(int8_t dshot_esc_gpio_num, uint32_t dshot_protocol, DSHOT_Channel_handle_t *esc_channel, DSHOT_encoder_handle_t *dshot_encoder);
-void install_dshot_sync_manager(DSHOT_Channel_handle_t *tx_channels, DSHOT_sync_manager_handle_t *synchro);
+void install_dshot_sync_manager(DSHOT_Channel_handle_t tx_channels[], DSHOT_sync_manager_handle_t *synchro);
 void enable_dshot_channel(DSHOT_Channel_handle_t esc_channel);
 void disable_dshot_channel(DSHOT_Channel_handle_t esc_channel);
-void dshot_send(uint16_t esc_throttle,DSHOT_Channel_handle_t esc_channel,DSHOT_encoder_handle_t dshot_encoder);
+void dshot_send(uint16_t esc_throttle, bool telemetry, DSHOT_Channel_handle_t esc_channel, DSHOT_encoder_handle_t dshot_encoder);
 
 #endif

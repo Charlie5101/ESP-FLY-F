@@ -28,6 +28,8 @@
 void DSHOT_init(void);
 void DSHOT_enable_channel(uint8_t id);
 void DSHOT_disable_channel(uint8_t id);
+void DSHOT_esc_unlock(uint8_t id);
+void DSHOT_esc_rotation_set(uint8_t id, uint8_t dir);
 void DSHOT_throttle_set(uint8_t id,uint16_t throttle);
 
 void motor_init(void);

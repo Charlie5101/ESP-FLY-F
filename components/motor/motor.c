@@ -32,21 +32,94 @@ void DSHOT_disable_channel(uint8_t id)
   disable_dshot_channel(dshot_channal[id-1]);
 }
 
-void DSHOT_throttle_set(uint8_t id,uint16_t throttle)
+void DSHOT_esc_unlock(uint8_t id)
 {
   switch(id)
   {
   case 1:
-    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    dshot_send(0, false, dshot_channal[id-1], dshot_encoder[id-1]);
     break;
   case 2:
-    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    dshot_send(0, false, dshot_channal[id-1], dshot_encoder[id-1]);
     break;
   case 3:
-    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    dshot_send(0, false, dshot_channal[id-1], dshot_encoder[id-1]);
     break;
   case 4:
-    dshot_send(throttle,dshot_channal[id-1], dshot_encoder[id-1]);
+    dshot_send(0, false, dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  default:
+    break;
+  }
+}
+
+void DSHOT_esc_rotation_set(uint8_t id, uint8_t dir)
+{
+  if(dir == 0)
+  {
+    switch(id)
+    {
+    case 1:
+      dshot_send(7, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 2:
+      dshot_send(7, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 3:
+      dshot_send(7, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 4:
+      dshot_send(7, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    default:
+      break;
+    }
+  }
+  else
+  {
+    switch(id)
+    {
+    case 1:
+      dshot_send(8, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 2:
+      dshot_send(8, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 3:
+      dshot_send(8, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    case 4:
+      dshot_send(8, false, dshot_channal[id-1], dshot_encoder[id-1]);
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+void DSHOT_throttle_set(uint8_t id, uint16_t throttle)
+{
+  if(throttle > 2047)
+  {
+    throttle = 2047;
+  }
+  else if(throttle < 48)
+  {
+    throttle = 48;
+  }
+  switch(id)
+  {
+  case 1:
+    dshot_send(throttle, false, dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 2:
+    dshot_send(throttle, false, dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 3:
+    dshot_send(throttle, false, dshot_channal[id-1], dshot_encoder[id-1]);
+    break;
+  case 4:
+    dshot_send(throttle, false, dshot_channal[id-1], dshot_encoder[id-1]);
     break;
   default:
     break;

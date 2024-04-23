@@ -198,8 +198,8 @@ void install_dshot_sync_manager(DSHOT_Channel_handle_t tx_channels[], DSHOT_sync
 {
   rmt_sync_manager_config_t synchro_config = {
       .tx_channel_array = tx_channels,
-      .array_size = sizeof(tx_channels) / sizeof(tx_channels[0]), //un verify
-      // .array_size = 4,
+      // .array_size = sizeof(tx_channels) / sizeof(tx_channels[0]), //un verify
+      .array_size = 4,
   };
   ESP_ERROR_CHECK(rmt_new_sync_manager(&synchro_config, synchro));
 }
@@ -216,7 +216,7 @@ void disable_dshot_channel(DSHOT_Channel_handle_t esc_channel)
   ESP_ERROR_CHECK(rmt_disable(esc_channel));
 }
 
-void dshot_send(uint16_t esc_throttle, DSHOT_Channel_handle_t esc_channel, DSHOT_encoder_handle_t dshot_encoder)
+void dshot_send(uint16_t esc_throttle, bool telemetry, DSHOT_Channel_handle_t esc_channel, DSHOT_encoder_handle_t dshot_encoder)
 {
   //refresh
   rmt_disable(esc_channel);
@@ -226,7 +226,7 @@ void dshot_send(uint16_t esc_throttle, DSHOT_Channel_handle_t esc_channel, DSHOT
   };
   dshot_esc_throttle_t throttle = {
       .throttle = esc_throttle,
-      .telemetry_req = false,
+      .telemetry_req = telemetry,
   };
   ESP_ERROR_CHECK(rmt_transmit(esc_channel, dshot_encoder, &throttle, sizeof(throttle), &tx_config));
 }

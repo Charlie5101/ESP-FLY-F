@@ -78,13 +78,18 @@ void cal_signal_RGB_data(uint8_t R,uint8_t G,uint8_t B,uint8_t temp[])
   }
 }
 
+void cal_RGB_data(uint8_t R,uint8_t G,uint8_t B,uint8_t temp[],uint8_t led_num)
+{
+  
+}
+
 void indicator_set_pixel(uint8_t data[])
 {
   xSemaphoreTake(Indicator_Mutex_Lock,portMAX_DELAY);     //Lock
-
+  uint8_t tt[24] = {0};
   //ESP_LOGI(TAG,"set");
   spi_connect_start(INDICATOR_HOST,-1,&indicator,8 * 24 + 1600,data,NULL);
-
+  // spi_connect_start(INDICATOR_HOST,-1,&indicator,sizeof(*data)/sizeof(data[0]) * 8 + 1600,data,NULL);
   xSemaphoreGive(Indicator_Mutex_Lock);     //UNLock
 }
 
