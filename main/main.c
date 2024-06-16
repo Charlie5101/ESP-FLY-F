@@ -92,6 +92,10 @@ void Task_receiver(void *arg);
 void Task_UpMonitor(void *arg);
 void Task_Wifi_Recv(void *arg);
 
+/*Class*/
+Senser_Classdef Senser;
+myPID_Classdef pitch_pid;
+
 /*Var*/
 DRAM_ATTR myPID pitch_pid;
 DRAM_ATTR myPID roll_pid;
@@ -206,8 +210,6 @@ void Task_MAIN(void *arg)
     // vTaskDelay(10);
   }
 }
-
-Senser_Classdef Senser;
 
 /**
  * @brief 
