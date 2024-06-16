@@ -230,6 +230,93 @@
 #define CS_BMI270     48
 #define CS_BMP388     14
 
+/*ICM42688P Class*/
+typedef struct{
+
+  spi_device_handle_t icm_42688p;
+  
+  float Gx_offset;
+  float Gy_offset;
+  float Gz_offset;
+
+  void (*init)(void* ICM);
+  float (*read_Temp)(void* ICM);
+  uint16_t (*read_Temp_u16)(void* ICM);
+  void (*read_ACC)(void* ICM, float *Ax, float *Ay, float *Az);
+  void (*read_GYRO)(void* ICM, float *Gx, float *Gy, float *Gz);
+  void (*read_ACC_GYRO)(void* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz);
+  void (*read_FIFO)(void* ICM);
+  void (*Get_Bais)(void* ICM);
+}ICM42688P_Classdef;
+
+/*BMI270 Class*/
+typedef struct{
+
+  spi_device_handle_t bmi_270;
+  float Gx_offset;
+  float Gy_offset;
+  float Gz_offset;
+
+  void (*init)(void);
+  float (*read_Temp)(void);
+  void (*read_GYRO)(float *Gx, float *Gy, float *Gz);
+  void (*read_ACC_GYRO)(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
+  void (*Get_Bais)(float* Gx_B,float* Gy_B,float* Gz_B);
+}BMI270_Classdef;
+
+/*BMP388 Class*/
+typedef struct{
+
+  spi_device_handle_t bmp_388;
+
+  void (*init)(void);
+}BMP388_Classdef;
+
+/*IMU Kalman Class*/
+typedef struct
+{
+  ICM42688P_Classdef ICM42688P;
+
+  float A[6][6];
+  float B[6][3];
+  float Q[6][6];
+  float R[6][6];
+  float H[6][6];  //3*6
+  float P[6][6];
+  float K[6][6];  //6*3
+  float Ut[3][3];
+  float X_hat[6][3];
+  float Z[6][3];  //3*3
+
+  float Ax,Ay,Az;
+  float Gx,Gy,Gz;
+
+  float Z_Roll,Z_Pitch,Z_Yaw;
+  float Z_dRoll,Z_dPitch,Z_dYaw;
+  float ARoll,APitch;
+
+  //out
+  float Pitch,Yaw,Roll;
+  float dPitch,dYaw,dRoll;
+
+  void (*init)(void* Kalman_Class);
+  void (*update)(void* Kalman_Class, float t, float U_roll, float U_pitch, float U_yaw);
+}IMU_Kalman_Classdef;
+
+/*Senser Class*/
+typedef struct{
+  IMU_Kalman_Classdef Kalman;
+  BMI270_Classdef BMI270;
+  BMP388_Classdef BMP388;
+
+  void (*init)(void *Senser_Class);
+}Senser_Classdef;
+
+void Senser_Class_init(Senser_Classdef *Senser_Class);
+void ICM42688P_Class_init(ICM42688P_Classdef *ICM_Class);
+void BMI270_Class_init(BMI270_Classdef *BMI_Class);
+void BMP388_Class_init(BMP388_Classdef *BMP_Class);
+
 //Kalman Filter
 typedef struct imu_Kalman
 {
@@ -248,15 +335,26 @@ typedef struct imu_Kalman
   float Z[6][3];  //3*3
 }imu_Kalman;
 
-void sensor_init(void);
-void ICM_42688P_init(void);
-float ICM_42688P_read_Temp(void);
-uint16_t ICM_42688P_read_Temp_u16(void);
-void ICM_42688P_read_ACC(float *Ax,float *Ay,float *Az);
-void ICM_42688P_read_GYRO(float *Gx,float *Gy,float *Gz);
-void ICM_42688P_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
-void ICM_42688P_read_FIFO(void);
-void ICM_42688P_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B);
+void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
+                                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                                        float R_0_0,float R_0_1,float R_1_0,float R_1_1,
+                                                        float R_2_2,float R_2_3,float R_3_2,float R_3_3,
+                                                        float R_4_4,float R_4_5,float R_5_4,float R_5_5);
+void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman);
+void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw);
+
+void sensor_init(Senser_Classdef *Senser_Class);
+void ICM_42688P_init(ICM42688P_Classdef* ICM);
+float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM);
+uint16_t ICM_42688P_read_Temp_u16(ICM42688P_Classdef* ICM);
+void ICM_42688P_read_ACC(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az);
+void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *Gz);
+void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz);
+void ICM_42688P_read_FIFO(ICM42688P_Classdef* ICM);
+void ICM_42688P_Get_Bais(ICM42688P_Classdef* ICM);
 void BMI270_init(void);
 float BMI270_read_Temp(void);
 void BMI270_read_GYRO(float *Gx,float *Gy,float *Gz);
@@ -300,6 +398,6 @@ void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
                                           float Z_droll,float Z_dpitch,float Z_dyaw,
                                           float Z_roll,float Z_pitch,float Z_yaw);
 
-void ICM_Get_R_Matrix(float *X,float *Y,float *Z);
+void ICM_Get_R_Matrix(ICM42688P_Classdef* IMU, float *X, float *Y, float *Z);
 
 #endif

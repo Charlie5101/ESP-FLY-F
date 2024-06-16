@@ -4,9 +4,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 // #include "freertos/task.h"
-#include "PID.h"
 
 SemaphoreHandle_t Sensor_get_data;
+SemaphoreHandle_t Pid_Contrl;
 
 gptimer_handle_t imu_timer = NULL;
 gptimer_handle_t control_timer = NULL;
@@ -92,13 +92,20 @@ void control_timer_create(void)
 static bool control_intr(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
   //Control
-  
+  if(timer == control_timer)
+  {
+    // PID_cal(&pitch_pid, Pitch, pitch_target);
+    // PID_cal(&roll_pid, Roll, roll_target);
+    // PID_cal(&yaw_pid, Yaw, yaw_target);
+    xSemaphoreGiveFromISR(Pid_Contrl,NULL);
+  }
 
   return 0;
 }
 
 void control_intr_enable_and_start(void)
 {
+  Pid_Contrl = xSemaphoreCreateBinary();
   ESP_ERROR_CHECK(gptimer_enable(control_timer));
   ESP_ERROR_CHECK(gptimer_start(control_timer));
 }

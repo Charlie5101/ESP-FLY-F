@@ -29,7 +29,7 @@ uint8_t Tx_Data_BMI270[TX_BUFF_MAX_LEN] = {0};
 uint8_t Tx_Data_BMP388[TX_BUFF_MAX_LEN] = {0};
 
 //spi device handle
-spi_device_handle_t icm_42688p;
+// spi_device_handle_t icm_42688p;
 spi_device_handle_t bmi_270;
 spi_device_handle_t bmp_388;
 
@@ -470,8 +470,9 @@ const uint8_t bmi270_config_file[] = {
     0x2e, 0x00, 0xc1
 };
 
-void sensor_init(void)
+void sensor_init(Senser_Classdef *Senser_Class)
 {
+  /*
   //CS pull up
   gpio_set_direction(CS_42688P, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_42688P, 1);
@@ -482,14 +483,22 @@ void sensor_init(void)
   gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMP388, 1);
   ESP_LOGI(TAG,"Init");
-  ICM_42688P_init();
-  BMI270_init();
-  BMP388_init();
+  */
+  // Senser_Class->ICM42688P.init();
+  // Senser_Class->BMI270.init();
+  // Senser_Class->BMP388.init();
+  // ICM_42688P_init();
+  // BMI270_init();
+  // BMP388_init();
 }
 
-void ICM_42688P_init(void)
+void ICM_42688P_init(ICM42688P_Classdef* ICM)
 {
-  spi_reg_device_to_bus(SPI_HOST,6,&icm_42688p,ICM_42688P_SPEED_HZ,SENSOR_SPI_MODE);
+  //CS pull up
+  gpio_set_direction(CS_42688P, GPIO_MODE_OUTPUT);
+  gpio_set_level(CS_42688P, 1);
+
+  spi_reg_device_to_bus(SPI_HOST,6,&ICM->icm_42688p,ICM_42688P_SPEED_HZ,SENSOR_SPI_MODE);
 
   // //Reset icm-42688P
   // Tx_Data_42688p[0] = DEVICE_CONFIG | ADDR_WRITE;
@@ -651,11 +660,11 @@ void ICM_42688P_init(void)
   //reset icm-42688p
   Tx_Data_42688p[0] = DEVICE_CONFIG | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   vTaskDelay(100);
   Tx_Data_42688p[0] = WHO_AM_I | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   if(Rx_Data_42688p[1] == 0x47)
     ESP_LOGI(TAG,"ICM-42688P connected");
@@ -666,85 +675,85 @@ void ICM_42688P_init(void)
   //INT Pin Set
   Tx_Data_42688p[0] = INT_CONFIG | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x1B;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //INT Set
   Tx_Data_42688p[0] = INT_CONFIG1 | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x60;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   
   //INTF Set
   Tx_Data_42688p[0] = INTF_CONFIG0 | ADDR_WRITE;
   Tx_Data_42688p[1] = 0xB0;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //FIFO Stop on Full
   Tx_Data_42688p[0] = FIFO_CONFIG | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x80;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //Time Stamp Set
   Tx_Data_42688p[0] = TMST_CONFIG | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x27;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //FIFO Set
   Tx_Data_42688p[0] = FIFO_CONFIG1 | ADDR_READ;
   Tx_Data_42688p[1] = 0x2F;         // FIFO cout ???
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   Tx_Data_42688p[0] = FIFO_CONFIG2 | ADDR_READ;
   Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   
   //INTF Set
   Tx_Data_42688p[0] = INTF_CONFIG1 | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x98;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
 
   //Open FIFO
   Tx_Data_42688p[0] = FIFO_CONFIG | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x40;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //change  into BANK 1
   Tx_Data_42688p[0] = REG_BANK_SEL | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //Filter Set
   Tx_Data_42688p[0] = GYRO_CONFIG_STATIC2 | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x03;         //close filter
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //change  into BANK 0
   Tx_Data_42688p[0] = REG_BANK_SEL | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //Run
   Tx_Data_42688p[0] = PWR_MGMT0 | ADDR_WRITE;
   Tx_Data_42688p[1] = 0x0F;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   vTaskDelay(100);      //Wait
   //Set Scale And ODR
   Tx_Data_42688p[0] = GYRO_CONFIG0 | ADDR_WRITE;
   // Tx_Data_42688p[1] = 0x01;     //32K
   Tx_Data_42688p[1] = 0x02;     //16K
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   Tx_Data_42688p[0] = ACCEL_CONFIG0 | ADDR_WRITE;
   // Tx_Data_42688p[1] = 0x41;     //32K
   Tx_Data_42688p[1] = 0x42;     //16K
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   //Read WHO AM I
   Tx_Data_42688p[0] = WHO_AM_I | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   if(Rx_Data_42688p[1] == 0x47)
     ESP_LOGI(TAG,"ICM-42688P Set OK");
@@ -754,11 +763,11 @@ void ICM_42688P_init(void)
   
 }
 
-float ICM_42688P_read_Temp(void)
+float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM)
 {
   float temp = 0.0;
   Tx_Data_42688p[0] = TEMP_DATA1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   // ESP_LOGI(TAG,"ICM-42688P Temp: High bit  %hX",Rx_Data_42688p[1]);
   // ESP_LOGI(TAG,"ICM-42688P Temp: LOW bit  %hX",Rx_Data_42688p[2]);
@@ -768,39 +777,39 @@ float ICM_42688P_read_Temp(void)
   return temp;
 }
 
-uint16_t ICM_42688P_read_Temp_u16(void)
+uint16_t ICM_42688P_read_Temp_u16(ICM42688P_Classdef* ICM)
 {
   Tx_Data_42688p[0] = TEMP_DATA1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
 
   return (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2];
 }
 
-void ICM_42688P_read_ACC(float *Ax,float *Ay,float *Az)
+void ICM_42688P_read_ACC(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az)
 {
   Tx_Data_42688p[0] = ACCEL_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   *Ax = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_ACC_FS / 32768.0);
   *Ay = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_ACC_FS / 32768.0);
   *Az = ( (float)(int16_t)( (Rx_Data_42688p[5] << 8) + Rx_Data_42688p[6] ) * ICM_42688P_ACC_FS / 32768.0);
 }
 
-void ICM_42688P_read_GYRO(float *Gx,float *Gy,float *Gz)
+void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *Gz)
 {
   Tx_Data_42688p[0] = GYRO_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   *Gx = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_GYRO_FS / 32768.0);
   *Gy = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_GYRO_FS / 32768.0);
   *Gz = ( (float)(int16_t)( (Rx_Data_42688p[5] << 8) + Rx_Data_42688p[6] ) * ICM_42688P_GYRO_FS / 32768.0);
 }
 
-void ICM_42688P_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz)
+void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz)
 {
   Tx_Data_42688p[0] = ACCEL_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,13 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,13 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   *Ax = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_ACC_FS / 32768.0);
   *Ay = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_ACC_FS / 32768.0);
@@ -810,17 +819,17 @@ void ICM_42688P_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,
   *Gz = ( (float)(int16_t)( (Rx_Data_42688p[11] << 8) + Rx_Data_42688p[12] ) * ICM_42688P_GYRO_FS / 32768.0);
 }
 
-void ICM_42688P_read_FIFO(void)
+void ICM_42688P_read_FIFO(ICM42688P_Classdef* ICM)
 {
   uint16_t Data_Len;
   Tx_Data_42688p[0] = FIFO_COUNTH | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
   memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
   Data_Len = (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2];
   if(Data_Len > 0)
   {
     Tx_Data_42688p[0] = FIFO_DATA_ICM | ADDR_READ;
-    spi_connect_start(SENSOR_HOST,CS_42688P,&icm_42688p,(Data_Len +1) * 8,Tx_Data_42688p,Rx_Data_42688p);
+    spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,(Data_Len +1) * 8,Tx_Data_42688p,Rx_Data_42688p);
     memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
     for(uint8_t i = 0;i < Data_Len;i++)
     {
@@ -831,28 +840,33 @@ void ICM_42688P_read_FIFO(void)
     ESP_LOGI(TAG,"ICM-42688P FIFO: Empty.....");
 }
 
-void ICM_42688P_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B)
+void ICM_42688P_Get_Bais(ICM42688P_Classdef* ICM)
 {
   float Gx,Gy,Gz;
   float X = 0.0,Y = 0.0,Z = 0.0;
   for(uint16_t i = 0;i < BAIS_CAL_TIMES;i++)
   {
-    ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
+    ICM_42688P_read_GYRO(ICM, &Gx, &Gy, &Gz);
     X += Gx;
     Y += Gy;
     Z += Gz;
     vTaskDelay(1);
   }
-  *Gx_B = X /  BAIS_CAL_TIMES;
-  *Gy_B = Y /  BAIS_CAL_TIMES;
-  *Gz_B = Z /  BAIS_CAL_TIMES;
-  ESP_LOGI(TAG,"ICM Gx Basic %f",*Gx_B);
-  ESP_LOGI(TAG,"ICM Gy Basic %f",*Gy_B);
-  ESP_LOGI(TAG,"ICM Gz Basic %f",*Gz_B);
+  ICM->Gx_offset = X /  BAIS_CAL_TIMES;
+  ICM->Gy_offset = Y /  BAIS_CAL_TIMES;
+  ICM->Gz_offset = Z /  BAIS_CAL_TIMES;
+  ESP_LOGI(TAG,"ICM Gx Basic %f",ICM->Gx_offset);
+  ESP_LOGI(TAG,"ICM Gy Basic %f",ICM->Gy_offset);
+  ESP_LOGI(TAG,"ICM Gz Basic %f",ICM->Gz_offset);
 }
 
 void BMI270_init(void)
 {
+  //BMI270 switch into SPI Mode
+  gpio_set_direction(CS_BMI270, GPIO_MODE_OUTPUT);
+  gpio_set_level(CS_BMI270, 0);
+  gpio_set_level(CS_BMI270, 1);
+
   spi_reg_device_to_bus(SPI_HOST,6,&bmi_270,BMI270_SPEED_HZ,SENSOR_SPI_MODE);
   Tx_Data_BMI270[0] = CHIP_ID | ADDR_READ;
   // Tx_Data_BMI270[1] = 0x00;
@@ -987,6 +1001,10 @@ void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B)
 
 void BMP388_init(void)
 {
+  //CS pull up
+  gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
+  gpio_set_level(CS_BMP388, 1);
+
   spi_reg_device_to_bus(SPI_HOST,6,&bmp_388,BMP388_SPEED_HZ,SENSOR_SPI_MODE);
   Tx_Data_BMP388[0] = CHIP_ID | ADDR_READ;
   // Tx_Data_BMP388[1] = 0x00;
@@ -1462,7 +1480,7 @@ void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
   Kalman->P[5][5] = Temp_P[5][5];
 }
 
-void ICM_Get_R_Matrix(float *X,float *Y,float *Z)
+void ICM_Get_R_Matrix(ICM42688P_Classdef* IMU, float *X, float *Y, float *Z)
 {
   float Sen_Data[1000] = {0};
   float Gx,Gy,Gz;
@@ -1471,7 +1489,7 @@ void ICM_Get_R_Matrix(float *X,float *Y,float *Z)
   /*------------------------roll-----------------------------*/
   for(uint16_t i=0;i<1000;i++)
   {
-    ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
+    ICM_42688P_read_GYRO(IMU, &Gx, &Gy, &Gz);
     Sen_Data[0] = Gx;
     *X += Gx;
     vTaskDelay(1);
@@ -1486,7 +1504,7 @@ void ICM_Get_R_Matrix(float *X,float *Y,float *Z)
   /*-----------------------pitch-----------------------------*/
   for(uint16_t i=0;i<1000;i++)
   {
-    ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
+    ICM_42688P_read_GYRO(IMU, &Gx,&Gy,&Gz);
     Sen_Data[0] = Gy;
     *Y += Gy;
     vTaskDelay(1);
@@ -1501,7 +1519,7 @@ void ICM_Get_R_Matrix(float *X,float *Y,float *Z)
   /*-------------------------yaw-----------------------------*/
   for(uint16_t i=0;i<1000;i++)
   {
-    ICM_42688P_read_GYRO(&Gx,&Gy,&Gz);
+    ICM_42688P_read_GYRO(IMU, &Gx,&Gy,&Gz);
     Sen_Data[0] = Gz;
     *Z += Gz;
     vTaskDelay(1);
@@ -1518,4 +1536,398 @@ void ICM_Get_R_Matrix(float *X,float *Y,float *Z)
 void imu_single_solution(float *roll_angle,float *roll_laps,float *pitch_angle,float *pitch_laps,float *yaw_angle,float *yaw_laps)
 {
   
+}
+
+void Senser_Class_init(Senser_Classdef *Senser_Class)
+{
+  Senser_Class->init = sensor_init;
+
+  IMU_Kalman_Class_init(&Senser_Class->Kalman, 0.0001,
+                                            0.1,  0.0,  0.0,  0.1,
+                                            0.1,  0.0,  0.0,  0.1,
+                                            0.1,  0.0,  0.0,  0.1,
+
+                                            0.02,  0.0,  0.0,  0.02,       //350.0,  0.0,  0.0,  350.0,
+                                            2.5,   0.0,  0.0,  2.5,        //35.0,  0.0,  0.0,  35.0,
+                                            0.2,   0.0,  0.0,  0.2);       //100.0,  0.0,  0.0,  100.0
+  BMI270_Class_init(&(Senser_Class->BMI270));
+  BMP388_Class_init(&(Senser_Class->BMP388));
+
+  Senser_Class->init(Senser_Class);
+}
+
+void ICM42688P_Class_init(ICM42688P_Classdef *ICM_Class)
+{
+  ICM_Class->Gx_offset = 0.0f;
+  ICM_Class->Gy_offset = 0.0f;
+  ICM_Class->Gz_offset = 0.0f;
+
+  ICM_Class->init = ICM_42688P_init;
+  ICM_Class->read_Temp = ICM_42688P_read_Temp;
+  ICM_Class->read_Temp_u16 = ICM_42688P_read_Temp_u16;
+  ICM_Class->read_ACC = ICM_42688P_read_ACC;
+  ICM_Class->read_GYRO = ICM_42688P_read_GYRO;
+  ICM_Class->read_ACC_GYRO = ICM_42688P_read_ACC_GYRO;
+  ICM_Class->read_FIFO = ICM_42688P_read_FIFO;
+  ICM_Class->Get_Bais = ICM_42688P_Get_Bais;
+
+  ICM_Class->init(ICM_Class);
+}
+
+void BMI270_Class_init(BMI270_Classdef *BMI_Class)
+{
+  BMI_Class->init = BMI270_init;
+  BMI_Class->read_Temp = BMI270_read_Temp;
+  BMI_Class->read_GYRO = BMI270_read_GYRO;
+  BMI_Class->read_ACC_GYRO = BMI270_read_ACC_GYRO;
+  BMI_Class->Get_Bais = BMI270_Get_Bais;
+
+  BMI_Class->init();
+}
+
+void BMP388_Class_init(BMP388_Classdef *BMP_Class)
+{
+  BMP_Class->init = BMP388_init;
+
+  BMP_Class->init();
+}
+
+void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
+                                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                                        float R_0_0,float R_0_1,float R_1_0,float R_1_1,
+                                                        float R_2_2,float R_2_3,float R_3_2,float R_3_3,
+                                                        float R_4_4,float R_4_5,float R_5_4,float R_5_5)
+{
+  //A
+  Kalman->A[0][0] = 1.0;
+  Kalman->A[0][1] = t;
+  Kalman->A[1][0] = 0;
+  Kalman->A[1][1] = 1.0;
+
+  Kalman->A[2][2] = 1.0;
+  Kalman->A[2][3] = t;
+  Kalman->A[3][2] = 0;
+  Kalman->A[3][3] = 1.0;
+
+  Kalman->A[4][4] = 1.0;
+  Kalman->A[4][5] = t;
+  Kalman->A[5][4] = 0;
+  Kalman->A[5][5] = 1.0;
+  //B
+  Kalman->B[0][0] = 0.5 * t * t;
+  Kalman->B[1][0] = t;
+  Kalman->B[2][1] = 0.5 * t * t;
+  Kalman->B[3][1] = t;
+  Kalman->B[4][2] = 0.5 * t * t;
+  Kalman->B[5][2] = t;
+  //Q
+  Kalman->Q[0][0] = Q_0_0;
+  Kalman->Q[0][1] = Q_0_1;
+  Kalman->Q[1][0] = Q_1_0;
+  Kalman->Q[1][1] = Q_1_1;
+
+  Kalman->Q[2][2] = Q_2_2;
+  Kalman->Q[2][3] = Q_2_3;
+  Kalman->Q[3][2] = Q_3_2;
+  Kalman->Q[3][3] = Q_3_3;
+
+  Kalman->Q[4][4] = Q_4_4;
+  Kalman->Q[4][5] = Q_4_5;
+  Kalman->Q[5][4] = Q_5_4;
+  Kalman->Q[5][5] = Q_5_5;
+  //R
+  Kalman->R[0][0] = R_0_0;
+  Kalman->R[0][1] = R_0_1;
+  Kalman->R[1][0] = R_1_0;
+  Kalman->R[1][1] = R_1_1;
+
+  Kalman->R[2][2] = R_2_2;
+  Kalman->R[2][3] = R_2_3;
+  Kalman->R[3][2] = R_3_2;
+  Kalman->R[3][3] = R_3_3;
+
+  Kalman->R[4][4] = R_4_4;
+  Kalman->R[4][5] = R_4_5;
+  Kalman->R[5][4] = R_5_4;
+  Kalman->R[5][5] = R_5_5;
+  //H
+  Kalman->H[0][0] = 0;
+  Kalman->H[0][1] = 1.0;
+
+  Kalman->H[1][2] = 0;
+  Kalman->H[1][3] = 1.0;
+
+  Kalman->H[2][4] = 0;
+  Kalman->H[2][5] = 1.0;
+  //P
+  Kalman->P[0][0] = 1.0;
+  Kalman->P[0][1] = 0;
+  Kalman->P[1][0] = 0;
+  Kalman->P[1][1] = 1.0;
+
+  Kalman->P[2][2] = 1.0;
+  Kalman->P[2][3] = 0;
+  Kalman->P[3][2] = 0;
+  Kalman->P[3][3] = 1.0;
+
+  Kalman->P[4][4] = 1.0;
+  Kalman->P[4][5] = 0;
+  Kalman->P[5][4] = 0;
+  Kalman->P[5][5] = 1.0;
+  //K
+  Kalman->K[0][0] = 0.5;
+  Kalman->K[1][0] = 0.5;
+  Kalman->K[2][1] = 0.5;
+  Kalman->K[3][1] = 0.5;
+  Kalman->K[4][2] = 0.5;
+  Kalman->K[5][2] = 0.5;
+
+  Kalman->Pitch = 0.0f;
+  Kalman->Yaw = 0.0f;
+  Kalman->Roll = 0.0f;
+  Kalman->dPitch = 0.0f;
+  Kalman->dYaw = 0.0f;
+  Kalman->dRoll = 0.0f;
+  Kalman->Z_Pitch = 0.0f;
+  Kalman->Z_Roll = 0.0f;
+  Kalman->Z_Yaw = 0.0f;
+  Kalman->Gx = 0.0f;
+  Kalman->Gy = 0.0f;
+  Kalman->Gz = 0.0f;
+  Kalman->Ax = 0.0f;
+  Kalman->Ay = 0.0f;
+  Kalman->Az = 0.0f;
+
+  Kalman->init = IMU_Kalman_init;
+  Kalman->update = IMU_Kalman_update;
+
+  ICM42688P_Class_init(&(Kalman->ICM42688P));
+
+  Kalman->init(Kalman);
+}
+
+void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman)
+{
+  Kalman->ICM42688P.Get_Bais(&Kalman->ICM42688P);
+}
+
+void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw)
+{
+  //Get Data
+  Kalman->ICM42688P.read_ACC_GYRO(&Kalman->ICM42688P, &Kalman->Ax, &Kalman->Ay, &Kalman->Az, &Kalman->Gx, &Kalman->Gy, &Kalman->Gz);
+
+  Kalman->Z_dRoll = Kalman->Gx - Kalman->ICM42688P.Gx_offset;
+  Kalman->Z_dPitch = Kalman->Gy - Kalman->ICM42688P.Gy_offset;
+  Kalman->Z_dYaw = Kalman->Gz - Kalman->ICM42688P.Gz_offset;
+  Kalman->Z_Roll += (Kalman->Gx - Kalman->ICM42688P.Gx_offset) * t;
+  Kalman->Z_Pitch += (Kalman->Gy - Kalman->ICM42688P.Gy_offset) * t;
+  Kalman->Z_Yaw += (Kalman->Gz - Kalman->ICM42688P.Gz_offset) * t;
+
+  //加计 低通
+  Kalman->ARoll = atanf(Kalman->Ay / Kalman->Az) * ( 180.0 / 3.1415926 );
+  Kalman->APitch = -atanf(Kalman->Ax / ( powf((Kalman->Ay * Kalman->Ay + Kalman->Az * Kalman->Az),0.5) )) * ( 180.0 / 3.1415926 );
+
+  /*
+  //零速判断 + 零速下加计修正
+  //roll
+  if( fabsf( Kalman->X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time < 1.0 )
+  {
+    zero_speed_dect_roll_time += t;
+    IN_Roll = Kalman->Z_Roll;
+  }
+  else if( fabsf( Kalman->X_hat[1][0] ) < 0.98 && zero_speed_dect_roll_time >= 1.0 )
+  {
+    Kalman->X_hat[1][0] = 0;
+    Kalman->X_hat[0][0] = Kalman->Roll;
+    Kalman->Z_Roll = Kalman->X_hat[0][0];
+    IN_Roll = Kalman->ARoll;
+  }
+  else
+  {
+    zero_speed_dect_roll_time = 0.0;
+    IN_Roll = Kalman->Z_Roll;
+  }
+  //pitch
+  if( fabsf( Kalman->X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time < 1.0 )
+  {
+    zero_speed_dect_pitch_time += t;
+    IN_Pitch = Kalman->Z_Pitch;
+  }
+  else if( fabsf( Kalman->X_hat[3][1] ) < 0.98 && zero_speed_dect_pitch_time >= 1.0 )
+  {
+    Kalman->X_hat[3][1] = 0;
+    Kalman->X_hat[2][1] = Kalman->Pitch;
+    Kalman->Z_Pitch = Kalman->X_hat[2][1];
+    IN_Pitch = Kalman->APitch;
+  }
+  else
+  {
+    zero_speed_dect_pitch_time = 0.0;
+    IN_Pitch = Kalman->Z_Pitch;
+  }
+  //yaw
+  if( fabsf( Kalman->X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time < 1.0 )
+  {
+    zero_speed_dect_yaw_time += t;
+  }
+  else if( fabsf( Kalman->X_hat[5][2] ) < 0.98 && zero_speed_dect_yaw_time >= 1.0 )
+  {
+    Kalman->X_hat[5][2] = 0;
+    Kalman->X_hat[4][2] = Kalman->Yaw;
+  }
+  else
+  {
+    zero_speed_dect_yaw_time = 0.0;
+  }
+  */
+
+  //step 1
+  static float Temp_X[6][3] = {0};
+  Temp_X[0][0] = 0.5 * U_roll * t * t + Kalman->X_hat[1][0] * t + Kalman->X_hat[0][0];      //0.5 * R2 * t * t + R1 * t + R0;
+  Temp_X[1][0] = U_roll * t + Kalman->X_hat[1][0];                                          //R2 * t + R1;
+
+  Temp_X[2][1] = 0.5 * U_pitch * t * t + Kalman->X_hat[3][1] * t + Kalman->X_hat[2][1];    //0.5 * P2 * t * t + P1 * t + P0;
+  Temp_X[3][1] = U_pitch * t + Kalman->X_hat[3][1];                                        //P2 * t + P1;
+
+  Temp_X[4][2] = 0.5 * U_yaw * t * t + Kalman->X_hat[5][2] * t + Kalman->X_hat[4][2];      //0.5 * Y2 * t * t + Y1 * t + Y0;
+  Temp_X[5][2] = U_yaw * t + Kalman->X_hat[5][2];                                          //Y2 * t + Y1;
+
+  // memcpy()
+  Kalman->X_hat[0][0] = Temp_X[0][0];
+  Kalman->X_hat[1][0] = Temp_X[1][0];
+  Kalman->X_hat[2][1] = Temp_X[2][1];
+  Kalman->X_hat[3][1] = Temp_X[3][1];
+  Kalman->X_hat[4][2] = Temp_X[4][2];
+  Kalman->X_hat[5][2] = Temp_X[5][2];
+  //step 2
+  static float Temp_P[6][6] = {0};
+  Temp_P[0][0] = Kalman->P[1][1] * t * t + Kalman->P[1][0] * t + Kalman->P[0][1] * t + Kalman->P[0][0] + Kalman->Q[0][0];
+                                                                                          //P11 * t * t + P10 * t + P1 * t + P0 + Q0;
+  Temp_P[0][1] = Kalman->P[1][1] * t + Kalman->P[0][1] + Kalman->Q[0][1];                 //P11 * t + P1 + Q1;
+  Temp_P[1][0] = Kalman->P[1][1] * t + Kalman->P[1][0] + Kalman->Q[1][0];                 //P11 * t + P10 + Q10;
+  Temp_P[1][1] = Kalman->P[1][1] + Kalman->Q[1][1];                                       //P11 + Q11;
+
+  Temp_P[2][2] = Kalman->P[3][3] * t * t + Kalman->P[3][2] * t + Kalman->P[2][3] * t + Kalman->P[2][2] + Kalman->Q[2][2];
+                                                                                          //P33 * t * t + P32 * t + P23 * t + P22 + Q22;
+  Temp_P[2][3] = Kalman->P[3][3] * t + Kalman->P[2][3] + Kalman->Q[2][3];                 //P33 * t + P23 + Q23;
+  Temp_P[3][2] = Kalman->P[3][3] * t + Kalman->P[3][2] + Kalman->Q[3][2];                 //P33 * t + P32 + Q32;
+  Temp_P[3][3] = Kalman->P[3][3] + Kalman->Q[3][3];                                       //P33 + Q33;
+
+  Temp_P[4][4] = Kalman->P[5][5] * t * t + Kalman->P[5][4] * t + Kalman->P[4][5] * t + Kalman->P[4][4] + Kalman->Q[4][4];
+                                                                                          //P55 * t * t + P54 * t + P45 * t + P44 + Q44;
+  Temp_P[4][5] = Kalman->P[5][5] * t + Kalman->P[4][5] + Kalman->Q[4][5];                 //P55 * t + P45 + Q45;
+  Temp_P[5][4] = Kalman->P[5][5] * t + Kalman->P[5][4] + Kalman->Q[5][4];                 //P55 * t + P54 + Q54;
+  Temp_P[5][5] = Kalman->P[5][5] + Kalman->Q[5][5];                                       //P55 + Q55;
+
+  // memcpy()
+  Kalman->P[0][0] = Temp_P[0][0];
+  Kalman->P[0][1] = Temp_P[0][1];
+  Kalman->P[1][0] = Temp_P[1][0];
+  Kalman->P[1][1] = Temp_P[1][1];
+
+  Kalman->P[2][2] = Temp_P[2][2];
+  Kalman->P[2][3] = Temp_P[2][3];
+  Kalman->P[3][2] = Temp_P[3][2];
+  Kalman->P[3][3] = Temp_P[3][3];
+
+  Kalman->P[4][4] = Temp_P[4][4];
+  Kalman->P[4][5] = Temp_P[4][5];
+  Kalman->P[5][4] = Temp_P[5][4];
+  Kalman->P[5][5] = Temp_P[5][5];
+  //step3
+    //1.求逆
+  static float Temp_N[6][6] = {0};
+  static float Temp_N_den[3] = {0};
+  Temp_N_den[0] = Kalman->R[0][0] * Kalman->R[1][1] + Kalman->P[0][0] * Kalman->R[1][1] - Kalman->R[0][1] * Kalman->R[1][0] - Kalman->P[0][1] * Kalman->R[1][0]
+                  - Kalman->P[1][0] * Kalman->R[0][1] + Kalman->P[1][1] * Kalman->R[0][0] + Kalman->P[0][0] * Kalman->P[1][1] - Kalman->P[0][1] * Kalman->P[1][0];
+  Temp_N_den[1] = Kalman->R[2][2] * Kalman->R[3][3] + Kalman->P[2][2] * Kalman->R[3][3] - Kalman->R[2][3] * Kalman->R[3][2] - Kalman->P[2][3] * Kalman->R[3][2]
+                  - Kalman->P[3][2] * Kalman->R[2][3] + Kalman->P[3][3] * Kalman->R[2][2] + Kalman->P[2][2] * Kalman->P[3][3] - Kalman->P[2][3] * Kalman->P[3][2];
+  Temp_N_den[2] = Kalman->R[4][4] * Kalman->R[5][5] + Kalman->P[4][4] * Kalman->R[5][5] - Kalman->R[4][5] * Kalman->R[5][4] - Kalman->P[4][5] * Kalman->R[5][4]
+                  - Kalman->P[5][4] * Kalman->R[4][5] + Kalman->P[5][5] * Kalman->R[4][4] + Kalman->P[4][4] * Kalman->P[5][5] - Kalman->P[4][5] * Kalman->P[5][4];
+  Temp_N[0][0] = ( Kalman->R[1][1] + Kalman->P[1][1] ) / Temp_N_den[0];
+  Temp_N[0][1] = - ( Kalman->R[0][1] + Kalman->P[0][1] ) / Temp_N_den[0];
+  Temp_N[1][0] = - ( Kalman->R[1][0] + Kalman->P[1][0] ) / Temp_N_den[0];
+  Temp_N[1][1] = ( Kalman->R[0][0] + Kalman->P[0][0] ) / Temp_N_den[0];
+
+  Temp_N[2][2] = ( Kalman->R[3][3] + Kalman->P[3][3] ) / Temp_N_den[1];
+  Temp_N[2][3] = - ( Kalman->R[2][3] + Kalman->P[2][3] ) / Temp_N_den[1];
+  Temp_N[3][2] = - ( Kalman->R[3][2] + Kalman->P[3][2] ) / Temp_N_den[1];
+  Temp_N[3][3] = ( Kalman->R[2][2] + Kalman->P[2][2] ) / Temp_N_den[1];
+
+  Temp_N[4][4] = ( Kalman->R[5][5] + Kalman->P[5][5] ) / Temp_N_den[2];
+  Temp_N[4][5] = - ( Kalman->R[4][5] + Kalman->P[4][5] ) / Temp_N_den[2];
+  Temp_N[5][4] = - ( Kalman->R[5][4] + Kalman->P[5][4] ) / Temp_N_den[2];
+  Temp_N[5][5] = ( Kalman->R[4][4] + Kalman->P[4][4] ) / Temp_N_den[2];
+    //2.
+  Kalman->K[0][0] = Temp_N[1][0] * Kalman->P[0][1] + Temp_N[0][0] * Kalman->P[0][0];
+  Kalman->K[0][1] = Temp_N[1][1] * Kalman->P[0][1] + Temp_N[0][1] * Kalman->P[0][0];
+  Kalman->K[1][0] = Temp_N[1][0] * Kalman->P[1][1] + Temp_N[0][0] * Kalman->P[1][0];
+  Kalman->K[1][1] = Temp_N[1][1] * Kalman->P[1][1] + Temp_N[0][1] * Kalman->P[1][0];
+
+  Kalman->K[2][2] = Temp_N[3][2] * Kalman->P[2][3] + Temp_N[2][2] * Kalman->P[2][2];
+  Kalman->K[2][3] = Temp_N[3][3] * Kalman->P[2][3] + Temp_N[2][3] * Kalman->P[2][2];
+  Kalman->K[3][2] = Temp_N[3][2] * Kalman->P[3][3] + Temp_N[2][2] * Kalman->P[3][2];
+  Kalman->K[3][3] = Temp_N[3][3] * Kalman->P[3][3] + Temp_N[2][3] * Kalman->P[3][2];
+
+  Kalman->K[4][4] = Temp_N[5][4] * Kalman->P[4][5] + Temp_N[4][4] * Kalman->P[4][4];
+  Kalman->K[4][5] = Temp_N[5][5] * Kalman->P[4][5] + Temp_N[4][5] * Kalman->P[4][4];
+  Kalman->K[5][4] = Temp_N[5][4] * Kalman->P[5][5] + Temp_N[4][4] * Kalman->P[5][4];
+  Kalman->K[5][5] = Temp_N[5][5] * Kalman->P[5][5] + Temp_N[4][5] * Kalman->P[5][4];
+  //step4
+  Temp_X[0][0] = Kalman->K[0][1] * Kalman->Z_dRoll + Kalman->K[0][0] * Kalman->Z_Roll - Kalman->K[0][1] * Kalman->X_hat[1][0] - Kalman->K[0][0] * Kalman->X_hat[0][0] + Kalman->X_hat[0][0];
+  Temp_X[1][0] = Kalman->K[1][1] * Kalman->Z_dRoll + Kalman->K[1][0] * Kalman->Z_Roll - Kalman->K[1][1] * Kalman->X_hat[1][0] - Kalman->K[1][0] * Kalman->X_hat[0][0] + Kalman->X_hat[1][0];
+
+  Temp_X[2][1] = Kalman->K[2][3] * Kalman->Z_dPitch + Kalman->K[2][2] * Kalman->Z_Pitch - Kalman->K[2][3] * Kalman->X_hat[3][1] - Kalman->K[2][2] * Kalman->X_hat[2][1] + Kalman->X_hat[2][1];
+  Temp_X[3][1] = Kalman->K[3][3] * Kalman->Z_dPitch + Kalman->K[3][2] * Kalman->Z_Pitch - Kalman->K[3][3] * Kalman->X_hat[3][1] - Kalman->K[3][2] * Kalman->X_hat[2][1] + Kalman->X_hat[3][1];
+
+  Temp_X[4][2] = Kalman->K[4][5] * Kalman->Z_dYaw + Kalman->K[4][4] * Kalman->Z_Yaw - Kalman->K[4][5] * Kalman->X_hat[5][2] - Kalman->K[4][4] * Kalman->X_hat[4][2] + Kalman->X_hat[4][2];
+  Temp_X[5][2] = Kalman->K[5][5] * Kalman->Z_dYaw + Kalman->K[5][4] * Kalman->Z_Yaw - Kalman->K[5][5] * Kalman->X_hat[5][2] - Kalman->K[5][4] * Kalman->X_hat[4][2] + Kalman->X_hat[5][2];
+
+  // memcpy()
+  Kalman->X_hat[0][0] = Temp_X[0][0];
+  Kalman->X_hat[1][0] = Temp_X[1][0];
+  Kalman->X_hat[2][1] = Temp_X[2][1];
+  Kalman->X_hat[3][1] = Temp_X[3][1];
+  Kalman->X_hat[4][2] = Temp_X[4][2];
+  Kalman->X_hat[5][2] = Temp_X[5][2];
+  //step 5
+  Temp_P[0][0] = ( - Kalman->K[0][1] * Kalman->P[1][0] ) - Kalman->K[0][0] * Kalman->P[0][0] + Kalman->P[0][0];
+  Temp_P[0][1] = ( - Kalman->K[0][1] * Kalman->P[1][1] ) - Kalman->K[0][0] * Kalman->P[0][1] + Kalman->P[0][1];
+  Temp_P[1][0] = ( - Kalman->K[1][1] * Kalman->P[1][0] ) - Kalman->K[1][0] * Kalman->P[0][0] + Kalman->P[1][0];
+  Temp_P[1][1] = ( - Kalman->K[1][1] * Kalman->P[1][1] ) - Kalman->K[1][0] * Kalman->P[0][1] + Kalman->P[1][1];
+
+  Temp_P[2][2] = ( - Kalman->K[2][3] * Kalman->P[3][2] ) - Kalman->K[2][2] * Kalman->P[2][2] + Kalman->P[2][2];
+  Temp_P[2][3] = ( - Kalman->K[2][3] * Kalman->P[3][3] ) - Kalman->K[2][2] * Kalman->P[2][3] + Kalman->P[2][3];
+  Temp_P[3][2] = ( - Kalman->K[3][3] * Kalman->P[3][2] ) - Kalman->K[3][2] * Kalman->P[2][2] + Kalman->P[3][2];
+  Temp_P[3][3] = ( - Kalman->K[3][3] * Kalman->P[3][3] ) - Kalman->K[3][2] * Kalman->P[2][3] + Kalman->P[3][3];
+
+  Temp_P[4][4] = ( - Kalman->K[4][5] * Kalman->P[5][4] ) - Kalman->K[4][4] * Kalman->P[4][4] + Kalman->P[4][4];
+  Temp_P[4][5] = ( - Kalman->K[4][5] * Kalman->P[5][5] ) - Kalman->K[4][4] * Kalman->P[4][5] + Kalman->P[4][5];
+  Temp_P[5][4] = ( - Kalman->K[5][5] * Kalman->P[5][4] ) - Kalman->K[5][4] * Kalman->P[4][4] + Kalman->P[5][4];
+  Temp_P[5][5] = ( - Kalman->K[5][5] * Kalman->P[5][5] ) - Kalman->K[5][4] * Kalman->P[4][5] + Kalman->P[5][5];
+  // memcpy()
+  Kalman->P[0][0] = Temp_P[0][0];
+  Kalman->P[0][1] = Temp_P[0][1];
+  Kalman->P[1][0] = Temp_P[1][0];
+  Kalman->P[1][1] = Temp_P[1][1];
+
+  Kalman->P[2][2] = Temp_P[2][2];
+  Kalman->P[2][3] = Temp_P[2][3];
+  Kalman->P[3][2] = Temp_P[3][2];
+  Kalman->P[3][3] = Temp_P[3][3];
+
+  Kalman->P[4][4] = Temp_P[4][4];
+  Kalman->P[4][5] = Temp_P[4][5];
+  Kalman->P[5][4] = Temp_P[5][4];
+  Kalman->P[5][5] = Temp_P[5][5];
+  //data out
+  Kalman->dRoll = Kalman->X_hat[1][0];
+  Kalman->Roll = Kalman->X_hat[0][0];
+  Kalman->dPitch = Kalman->X_hat[3][1];
+  Kalman->Pitch = Kalman->X_hat[2][1];
+  Kalman->dYaw = Kalman->X_hat[5][2];
+  Kalman->Yaw = Kalman->X_hat[4][2];
 }
