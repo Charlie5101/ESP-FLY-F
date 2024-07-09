@@ -51,6 +51,7 @@ typedef struct
 void myPID_Class_init(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit);
 void myPID_init(myPID_Classdef* myPID);
 void myPID_param_switch(myPID_Classdef* myPID,float Kp,float Ki,float Kd,float P_Limit,float I_Limit,float D_Limit);
+void myPID_update(myPID_Classdef *myPID, float Target, float Current);
 void myPID_cal(myPID_Classdef* myPID);
 
 void PID_param_init(myPID *PID,float Kp,float Ki,float Kd,float P_Limit,float I_Limit,float D_Limit);

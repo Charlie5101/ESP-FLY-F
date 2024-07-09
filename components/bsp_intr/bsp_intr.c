@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 // #include "freertos/task.h"
+#include "soc/soc.h"
 
 SemaphoreHandle_t Sensor_get_data;
 SemaphoreHandle_t Pid_Contrl;

@@ -15,6 +15,7 @@
 #include "myWifi.h"
 #include "Kalman.h"
 #include "PID.h"
+#include "receiver.h"
 
 /*task config*/
 #define Task_MAIN_Stack       4096
@@ -94,7 +95,8 @@ void Task_Wifi_Recv(void *arg);
 
 /*Class*/
 Senser_Classdef Senser;
-myPID_Classdef pitch_pid;
+myPID_Classdef Pitch_pid;
+Receiver_Classdef Receiver;
 
 /*Var*/
 DRAM_ATTR myPID pitch_pid;
@@ -396,9 +398,19 @@ void Task_RGB_LED(void *arg)
  */
 void Task_receiver(void *arg)
 {
+
+
+  Receiver_Class_init(&Receiver);
+  Receiver.crsf.crc8_init(&Receiver);
   for(;;)
   {
-    vTaskDelay(10);
+    xSemaphoreTake(Uart_data_rec, portMAX_DELAY);
+    if( Receiver.crsf.crc_check(&Receiver, &Receiver.dtmp[2]) == true )
+    {
+      Receiver.crsf.decode(&Receiver);
+    }
+    // uart_write_bytes(EX_UART_NUM, (const char *)"ONLINE\n", sizeof("ONLINE\n"));
+    // vTaskDelay(3000);
   }
 }
 
@@ -440,10 +452,15 @@ void Task_UpMonitor(void *arg)
     // Line.data[3] = BMI_Gz;
     // Line.data[4] = Gz_Kalman_BMI.X[1];
 
-    Line.data[0] = Gx;
-    Line.data[1] = Roll;
-    Line.data[2] = Senser.Kalman.Gx;
-    Line.data[3] = Gy;
+    Line.data[0] = Receiver.main_data.ch0 * 1000.0f;
+    Line.data[1] = Receiver.main_data.ch1 * 1000.0f;
+    Line.data[2] = Receiver.main_data.ch2 * 1000.0f;
+    Line.data[3] = Receiver.main_data.ch3 * 1000.0f;
+
+    // Line.data[0] = Gx;
+    // Line.data[1] = Roll;
+    // Line.data[2] = Senser.Kalman.Gx;
+    // Line.data[3] = Gy;
     Line.data[4] = Pitch;
     Line.data[5] = Senser.Kalman.Gy;
     Line.data[6] = Gz;
@@ -484,5 +501,74 @@ void Task_Wifi_Recv(void *arg)
       OTA_update();
     }
     vTaskDelay(10);
+  }
+}
+
+QueueHandle_t uart0_queue;
+
+void uart_event_task(QueueHandle_t* queue)
+{
+  uart_event_t event;
+  size_t buffered_size;
+  uint8_t *dtmp = (uint8_t *)malloc(UART_RD_BUFF_SIZE);
+  for(;;)
+  {
+    // Waiting for UART event.
+    if (xQueueReceive(*queue, (void *)&event, (TickType_t)portMAX_DELAY))
+    {
+      bzero(dtmp, UART_RD_BUFF_SIZE);
+      // ESP_LOGI("UART", "uart[%d] event:", EX_UART_NUM);
+      switch (event.type)
+      {
+      // Event of UART receving data
+      /*We'd better handler data event fast, there would be much more data events than
+      other types of events. If we take too much time on data event, the queue might
+      be full.*/
+      case UART_DATA:
+        // ESP_LOGI("UART", "[UART DATA]: %d", event.size);
+        uart_read_bytes(EX_UART_NUM, dtmp, event.size, portMAX_DELAY);
+        // ESP_LOGI("UART", "[DATA EVT]:");
+        // uart_write_bytes(EX_UART_NUM, (const char *)dtmp, event.size);
+
+        Receiver.rec_data(&Receiver, dtmp, event.size);
+        xSemaphoreGive(Uart_data_rec);
+
+        break;
+      // Event of HW FIFO overflow detected
+      case UART_FIFO_OVF:
+        ESP_LOGI("UART", "hw fifo overflow");
+        // If fifo overflow happened, you should consider adding flow control for your application.
+        // The ISR has already reset the rx FIFO,
+        // As an example, we directly flush the rx buffer here in order to read more data.
+        uart_flush_input(EX_UART_NUM);
+        xQueueReset(*queue);
+        break;
+      // Event of UART ring buffer full
+      case UART_BUFFER_FULL:
+        ESP_LOGI("UART", "ring buffer full");
+        // If buffer full happened, you should consider increasing your buffer size
+        // As an example, we directly flush the rx buffer here in order to read more data.
+        uart_flush_input(EX_UART_NUM);
+        xQueueReset(*queue);
+        break;
+      // Event of UART RX break detected
+      case UART_BREAK:
+        ESP_LOGI("UART", "uart rx break");
+        break;
+      // Event of UART parity check error
+      case UART_PARITY_ERR:
+        ESP_LOGI("UART", "uart parity error");
+        break;
+      // Event of UART frame error
+      case UART_FRAME_ERR:
+        ESP_LOGI("UART", "uart frame error");
+        break;
+      // Others
+      default:
+        ESP_LOGI("UART", "uart event type: %d", event.type);
+        break;
+      }
+    }
+    // vTaskDelay(1);W
   }
 }
