@@ -230,14 +230,17 @@
 #define CS_BMI270     48
 #define CS_BMP388     14
 
+#define RX_BUFF_MAX_LEN             20
+#define TX_BUFF_MAX_LEN             20
+
 /*ICM42688P Class*/
 typedef struct{
-
   spi_device_handle_t icm_42688p;
-  
   float Gx_offset;
   float Gy_offset;
   float Gz_offset;
+  uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
+  uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
 
   void (*init)(void* ICM);
   float (*read_Temp)(void* ICM);
@@ -251,25 +254,27 @@ typedef struct{
 
 /*BMI270 Class*/
 typedef struct{
-
   spi_device_handle_t bmi_270;
   float Gx_offset;
   float Gy_offset;
   float Gz_offset;
+  uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
+  uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
 
-  void (*init)(void);
-  float (*read_Temp)(void);
-  void (*read_GYRO)(float *Gx, float *Gy, float *Gz);
-  void (*read_ACC_GYRO)(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
-  void (*Get_Bais)(float* Gx_B,float* Gy_B,float* Gz_B);
+  void (*init)(void* BMI);
+  float (*read_Temp)(void* BMI);
+  void (*read_GYRO)(void* BMI, float *Gx, float *Gy, float *Gz);
+  void (*read_ACC_GYRO)(void* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
+  void (*Get_Bais)(void* BMI, float* Gx_B,float* Gy_B,float* Gz_B);
 }BMI270_Classdef;
 
 /*BMP388 Class*/
 typedef struct{
-
   spi_device_handle_t bmp_388;
+  uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
+  uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
 
-  void (*init)(void);
+  void (*init)(void* BMP);
 }BMP388_Classdef;
 
 /*IMU Kalman Class*/
@@ -343,6 +348,8 @@ void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
                                                         float R_0_0,float R_0_1,float R_1_0,float R_1_1,
                                                         float R_2_2,float R_2_3,float R_3_2,float R_3_3,
                                                         float R_4_4,float R_4_5,float R_5_4,float R_5_5);
+
+/*
 void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman);
 void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw);
 
@@ -399,5 +406,6 @@ void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
                                           float Z_roll,float Z_pitch,float Z_yaw);
 
 void ICM_Get_R_Matrix(ICM42688P_Classdef* IMU, float *X, float *Y, float *Z);
+*/
 
 #endif

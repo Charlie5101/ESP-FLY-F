@@ -6,9 +6,6 @@
 #include <string.h>
 #include <math.h>
 
-#define RX_BUFF_MAX_LEN             20
-#define TX_BUFF_MAX_LEN             20
-
 #define BAIS_CAL_TIMES              5000.0
 
 #define ICM_42688P_SPEED_HZ         24 * 1000000  //Hz
@@ -19,18 +16,68 @@
 #define BMI270_ACC_FS               8.0
 #define BMP388_SPEED_HZ             10 * 1000000
 
+void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman);
+void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw);
+void sensor_init(Senser_Classdef *Senser_Class);
+void ICM_42688P_init(ICM42688P_Classdef* ICM);
+float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM);
+uint16_t ICM_42688P_read_Temp_u16(ICM42688P_Classdef* ICM);
+void ICM_42688P_read_ACC(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az);
+void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *Gz);
+void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz);
+void ICM_42688P_read_FIFO(ICM42688P_Classdef* ICM);
+void ICM_42688P_Get_Bais(ICM42688P_Classdef* ICM);
+void BMI270_init(BMI270_Classdef* BMI);
+float BMI270_read_Temp(BMI270_Classdef* BMI);
+void BMI270_read_GYRO(BMI270_Classdef* BMI, float *Gx,float *Gy,float *Gz);
+void BMI270_read_ACC_GYRO(BMI270_Classdef* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
+void BMI270_Get_Bais(BMI270_Classdef* BMI, float* Gx_B,float* Gy_B,float* Gz_B);
+void BMP388_init(BMP388_Classdef* BMP);
+void imu_kalman_init(imu_Kalman *Kalman,float t,
+                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                        float R_0,float R_1,float R_2);
+void imu_kalman_cal(imu_Kalman *Kalman, float A_0_0,float A_0_1,float A_1_0,float A_1_1,
+                                        float A_2_2,float A_2_3,float A_3_2,float A_3_3,
+                                        float A_4_4,float A_4_5,float A_5_4,float A_5_5,
+
+                                        float B_0_0,float B_1_0,
+                                        float B_2_1,float B_3_1,
+                                        float B_4_2,float B_5_2,
+
+                                        float U_1,float U_2,float U_3,
+                                        float Z_1,float Z_2,float Z_3);
+void imu_kalman_cal_d(imu_Kalman *Kalman, float t,
+                                          float U_roll,float U_pitch,float U_yaw,
+                                          float Z_droll,float Z_dpitch,float Z_dyaw);
+void imu_kalman_d2_init(imu_Kalman *Kalman,float t,
+                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
+                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
+                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
+
+                                        float R_0_0,float R_0_1,float R_1_0,float R_1_1,
+                                        float R_2_2,float R_2_3,float R_3_2,float R_3_3,
+                                        float R_4_4,float R_4_5,float R_5_4,float R_5_5);
+void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
+                                          float U_roll,float U_pitch,float U_yaw,
+                                          float Z_droll,float Z_dpitch,float Z_dyaw,
+                                          float Z_roll,float Z_pitch,float Z_yaw);
+void ICM_Get_R_Matrix(ICM42688P_Classdef* IMU, float *X, float *Y, float *Z);
+
 static const char* TAG = "sensor:";
 
-uint8_t Rx_Data_42688p[RX_BUFF_MAX_LEN] = {0};
-uint8_t Rx_Data_BMI270[RX_BUFF_MAX_LEN] = {0};
-uint8_t Rx_Data_BMP388[RX_BUFF_MAX_LEN] = {0};
-uint8_t Tx_Data_42688p[TX_BUFF_MAX_LEN] = {0};
-uint8_t Tx_Data_BMI270[TX_BUFF_MAX_LEN] = {0};
-uint8_t Tx_Data_BMP388[TX_BUFF_MAX_LEN] = {0};
+// uint8_t Rx_Data_42688p[RX_BUFF_MAX_LEN] = {0};
+// uint8_t Rx_Data_BMI270[RX_BUFF_MAX_LEN] = {0};
+// uint8_t Rx_Data_BMP388[RX_BUFF_MAX_LEN] = {0};
+// uint8_t Tx_Data_42688p[TX_BUFF_MAX_LEN] = {0};
+// uint8_t Tx_Data_BMI270[TX_BUFF_MAX_LEN] = {0};
+// uint8_t Tx_Data_BMP388[TX_BUFF_MAX_LEN] = {0};
 
 //spi device handle
 // spi_device_handle_t icm_42688p;
-spi_device_handle_t bmi_270;
+// spi_device_handle_t bmi_270;
 spi_device_handle_t bmp_388;
 
 // imu_Kalman ICM_Kalman = {0};
@@ -658,104 +705,104 @@ void ICM_42688P_init(ICM42688P_Classdef* ICM)
 
   
   //reset icm-42688p
-  Tx_Data_42688p[0] = DEVICE_CONFIG | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = DEVICE_CONFIG | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x01;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   vTaskDelay(100);
-  Tx_Data_42688p[0] = WHO_AM_I | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  if(Rx_Data_42688p[1] == 0x47)
+  ICM->Tx_Data_Buff[0] = WHO_AM_I | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if(ICM->Rx_Data_Buff[1] == 0x47)
     ESP_LOGI(TAG,"ICM-42688P connected");
   else
     ESP_LOGW(TAG,"ICM-42688P unconnect......");
   //FSYNC Set
-  // Tx_Data_42688p[0] = FSYNC_CONFIG | ADDR_WRITE;
+  // ICM->Tx_Data_Buff[0] = FSYNC_CONFIG | ADDR_WRITE;
   //INT Pin Set
-  Tx_Data_42688p[0] = INT_CONFIG | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x1B;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = INT_CONFIG | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x1B;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //INT Set
-  Tx_Data_42688p[0] = INT_CONFIG1 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x60;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = INT_CONFIG1 | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x60;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   
   //INTF Set
-  Tx_Data_42688p[0] = INTF_CONFIG0 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0xB0;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = INTF_CONFIG0 | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0xB0;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //FIFO Stop on Full
-  Tx_Data_42688p[0] = FIFO_CONFIG | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x80;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = FIFO_CONFIG | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x80;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Time Stamp Set
-  Tx_Data_42688p[0] = TMST_CONFIG | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x27;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = TMST_CONFIG | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x27;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //FIFO Set
-  Tx_Data_42688p[0] = FIFO_CONFIG1 | ADDR_READ;
-  Tx_Data_42688p[1] = 0x2F;         // FIFO cout ???
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  Tx_Data_42688p[0] = FIFO_CONFIG2 | ADDR_READ;
-  Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = FIFO_CONFIG1 | ADDR_READ;
+  ICM->Tx_Data_Buff[1] = 0x2F;         // FIFO cout ???
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = FIFO_CONFIG2 | ADDR_READ;
+  ICM->Tx_Data_Buff[1] = 0x01;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   
   //INTF Set
-  Tx_Data_42688p[0] = INTF_CONFIG1 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x98;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = INTF_CONFIG1 | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x98;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
 
   //Open FIFO
-  Tx_Data_42688p[0] = FIFO_CONFIG | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x40;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = FIFO_CONFIG | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x40;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //change  into BANK 1
-  Tx_Data_42688p[0] = REG_BANK_SEL | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = REG_BANK_SEL | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x01;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Filter Set
-  Tx_Data_42688p[0] = GYRO_CONFIG_STATIC2 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x03;         //close filter
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = GYRO_CONFIG_STATIC2 | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x03;         //close filter
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //change  into BANK 0
-  Tx_Data_42688p[0] = REG_BANK_SEL | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = REG_BANK_SEL | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x00;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Run
-  Tx_Data_42688p[0] = PWR_MGMT0 | ADDR_WRITE;
-  Tx_Data_42688p[1] = 0x0F;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = PWR_MGMT0 | ADDR_WRITE;
+  ICM->Tx_Data_Buff[1] = 0x0F;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   vTaskDelay(100);      //Wait
   //Set Scale And ODR
-  Tx_Data_42688p[0] = GYRO_CONFIG0 | ADDR_WRITE;
-  // Tx_Data_42688p[1] = 0x01;     //32K
-  Tx_Data_42688p[1] = 0x02;     //16K
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  Tx_Data_42688p[0] = ACCEL_CONFIG0 | ADDR_WRITE;
-  // Tx_Data_42688p[1] = 0x41;     //32K
-  Tx_Data_42688p[1] = 0x42;     //16K
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = GYRO_CONFIG0 | ADDR_WRITE;
+  // ICM->Tx_Data_Buff[1] = 0x01;     //32K
+  ICM->Tx_Data_Buff[1] = 0x02;     //16K
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = ACCEL_CONFIG0 | ADDR_WRITE;
+  // ICM->Tx_Data_Buff[1] = 0x41;     //32K
+  ICM->Tx_Data_Buff[1] = 0x42;     //16K
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Read WHO AM I
-  Tx_Data_42688p[0] = WHO_AM_I | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  if(Rx_Data_42688p[1] == 0x47)
+  ICM->Tx_Data_Buff[0] = WHO_AM_I | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,2 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if(ICM->Rx_Data_Buff[1] == 0x47)
     ESP_LOGI(TAG,"ICM-42688P Set OK");
   else
     ESP_LOGW(TAG,"ICM-42688P Set Fail......");
@@ -766,12 +813,12 @@ void ICM_42688P_init(ICM42688P_Classdef* ICM)
 float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM)
 {
   float temp = 0.0;
-  Tx_Data_42688p[0] = TEMP_DATA1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  // ESP_LOGI(TAG,"ICM-42688P Temp: High bit  %hX",Rx_Data_42688p[1]);
-  // ESP_LOGI(TAG,"ICM-42688P Temp: LOW bit  %hX",Rx_Data_42688p[2]);
-  temp = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2] ) / 132.48 ) + 25.0;
+  ICM->Tx_Data_Buff[0] = TEMP_DATA1 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  // ESP_LOGI(TAG,"ICM-42688P Temp: High bit  %hX",ICM->Rx_Data_Buff[1]);
+  // ESP_LOGI(TAG,"ICM-42688P Temp: LOW bit  %hX",ICM->Rx_Data_Buff[2]);
+  temp = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8 ) + ICM->Rx_Data_Buff[2] ) / 132.48 ) + 25.0;
   // ESP_LOGI(TAG,"ICM-42688P Temp: %f",temp);
 
   return temp;
@@ -779,61 +826,61 @@ float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM)
 
 uint16_t ICM_42688P_read_Temp_u16(ICM42688P_Classdef* ICM)
 {
-  Tx_Data_42688p[0] = TEMP_DATA1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+  ICM->Tx_Data_Buff[0] = TEMP_DATA1 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
 
-  return (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2];
+  return (ICM->Rx_Data_Buff[1] << 8 ) + ICM->Rx_Data_Buff[2];
 }
 
 void ICM_42688P_read_ACC(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az)
 {
-  Tx_Data_42688p[0] = ACCEL_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  *Ax = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Ay = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Az = ( (float)(int16_t)( (Rx_Data_42688p[5] << 8) + Rx_Data_42688p[6] ) * ICM_42688P_ACC_FS / 32768.0);
+  ICM->Tx_Data_Buff[0] = ACCEL_DATA_X1 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  *Ax = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8) + ICM->Rx_Data_Buff[2] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Ay = ( (float)(int16_t)( (ICM->Rx_Data_Buff[3] << 8) + ICM->Rx_Data_Buff[4] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Az = ( (float)(int16_t)( (ICM->Rx_Data_Buff[5] << 8) + ICM->Rx_Data_Buff[6] ) * ICM_42688P_ACC_FS / 32768.0);
 }
 
 void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *Gz)
 {
-  Tx_Data_42688p[0] = GYRO_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  *Gx = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_GYRO_FS / 32768.0);
-  *Gy = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_GYRO_FS / 32768.0);
-  *Gz = ( (float)(int16_t)( (Rx_Data_42688p[5] << 8) + Rx_Data_42688p[6] ) * ICM_42688P_GYRO_FS / 32768.0);
+  ICM->Tx_Data_Buff[0] = GYRO_DATA_X1 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,7 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  *Gx = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8) + ICM->Rx_Data_Buff[2] ) * ICM_42688P_GYRO_FS / 32768.0);
+  *Gy = ( (float)(int16_t)( (ICM->Rx_Data_Buff[3] << 8) + ICM->Rx_Data_Buff[4] ) * ICM_42688P_GYRO_FS / 32768.0);
+  *Gz = ( (float)(int16_t)( (ICM->Rx_Data_Buff[5] << 8) + ICM->Rx_Data_Buff[6] ) * ICM_42688P_GYRO_FS / 32768.0);
 }
 
 void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz)
 {
-  Tx_Data_42688p[0] = ACCEL_DATA_X1 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,13 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  *Ax = ( (float)(int16_t)( (Rx_Data_42688p[1] << 8) + Rx_Data_42688p[2] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Ay = ( (float)(int16_t)( (Rx_Data_42688p[3] << 8) + Rx_Data_42688p[4] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Az = ( (float)(int16_t)( (Rx_Data_42688p[5] << 8) + Rx_Data_42688p[6] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Gx = ( (float)(int16_t)( (Rx_Data_42688p[7] << 8) + Rx_Data_42688p[8] ) * ICM_42688P_GYRO_FS / 32768.0);
-  *Gy = ( (float)(int16_t)( (Rx_Data_42688p[9] << 8) + Rx_Data_42688p[10] ) * ICM_42688P_GYRO_FS / 32768.0);
-  *Gz = ( (float)(int16_t)( (Rx_Data_42688p[11] << 8) + Rx_Data_42688p[12] ) * ICM_42688P_GYRO_FS / 32768.0);
+  ICM->Tx_Data_Buff[0] = ACCEL_DATA_X1 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,13 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  *Ax = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8) + ICM->Rx_Data_Buff[2] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Ay = ( (float)(int16_t)( (ICM->Rx_Data_Buff[3] << 8) + ICM->Rx_Data_Buff[4] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Az = ( (float)(int16_t)( (ICM->Rx_Data_Buff[5] << 8) + ICM->Rx_Data_Buff[6] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Gx = ( (float)(int16_t)( (ICM->Rx_Data_Buff[7] << 8) + ICM->Rx_Data_Buff[8] ) * ICM_42688P_GYRO_FS / 32768.0);
+  *Gy = ( (float)(int16_t)( (ICM->Rx_Data_Buff[9] << 8) + ICM->Rx_Data_Buff[10] ) * ICM_42688P_GYRO_FS / 32768.0);
+  *Gz = ( (float)(int16_t)( (ICM->Rx_Data_Buff[11] << 8) + ICM->Rx_Data_Buff[12] ) * ICM_42688P_GYRO_FS / 32768.0);
 }
 
 void ICM_42688P_read_FIFO(ICM42688P_Classdef* ICM)
 {
   uint16_t Data_Len;
-  Tx_Data_42688p[0] = FIFO_COUNTH | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,Tx_Data_42688p,Rx_Data_42688p);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  Data_Len = (Rx_Data_42688p[1] << 8 ) + Rx_Data_42688p[2];
+  ICM->Tx_Data_Buff[0] = FIFO_COUNTH | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,3 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+  memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  Data_Len = (ICM->Rx_Data_Buff[1] << 8 ) + ICM->Rx_Data_Buff[2];
   if(Data_Len > 0)
   {
-    Tx_Data_42688p[0] = FIFO_DATA_ICM | ADDR_READ;
-    spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,(Data_Len +1) * 8,Tx_Data_42688p,Rx_Data_42688p);
-    memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
+    ICM->Tx_Data_Buff[0] = FIFO_DATA_ICM | ADDR_READ;
+    spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,(Data_Len +1) * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
+    memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
     for(uint8_t i = 0;i < Data_Len;i++)
     {
-      ESP_LOGI(TAG,"ICM-42688P FIFO: %hX",Rx_Data_42688p[i+1]);
+      ESP_LOGI(TAG,"ICM-42688P FIFO: %hX",ICM->Rx_Data_Buff[i+1]);
     }
   }
   else
@@ -860,59 +907,59 @@ void ICM_42688P_Get_Bais(ICM42688P_Classdef* ICM)
   ESP_LOGI(TAG,"ICM Gz Basic %f",ICM->Gz_offset);
 }
 
-void BMI270_init(void)
+void BMI270_init(BMI270_Classdef* BMI)
 {
   //BMI270 switch into SPI Mode
   gpio_set_direction(CS_BMI270, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMI270, 0);
   gpio_set_level(CS_BMI270, 1);
 
-  spi_reg_device_to_bus(SPI_HOST,6,&bmi_270,BMI270_SPEED_HZ,SENSOR_SPI_MODE);
-  Tx_Data_BMI270[0] = CHIP_ID | ADDR_READ;
-  // Tx_Data_BMI270[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,3 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[0]);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[1]);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[2]);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[3]);
-  if(Rx_Data_BMI270[2] == 0x24)
+  spi_reg_device_to_bus(SPI_HOST,6,&BMI->bmi_270,BMI270_SPEED_HZ,SENSOR_SPI_MODE);
+  BMI->Tx_Data_Buff[0] = CHIP_ID | ADDR_READ;
+  // BMI->Tx_Data_Buff[1] = 0x00;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,3 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[0]);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[1]);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[2]);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[3]);
+  if(BMI->Rx_Data_Buff[2] == 0x24)
     ESP_LOGI(TAG,"BMI-270 connected");
   else
     ESP_LOGW(TAG,"BMI-270 unconnect......");
 
   //Disable PWR_CONF.adv_power_save
-  Tx_Data_BMI270[0] = PWR_CONF | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = PWR_CONF | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0x00;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //wait for at least 450us
   vTaskDelay(100);
   //prepare config load INT_CTRL
-  Tx_Data_BMI270[0] = INIT_CTRL | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = INIT_CTRL | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0x00;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //load config file and save as array
   uint8_t init_array[8193];
   memcpy(init_array + 1,bmi270_config_file,8192);
   // memcpy(init_array,bmi270_config_file,8193);
   init_array[0] = INIT_DATA | ADDR_WRITE;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,8193 * 8,init_array,NULL);
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,8193 * 8,init_array,NULL);
   //complete config load INIT_CTRL
-  Tx_Data_BMI270[0] = INIT_CTRL | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0x01;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
+  BMI->Tx_Data_Buff[0] = INIT_CTRL | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0x01;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
   //Wait at least 20ms
   vTaskDelay(250);
   //Read INTERNAL_STATUS
-  Tx_Data_BMI270[0] = INTERNAL_STATUS | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,3 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[0]);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[1]);
-  // ESP_LOGI(TAG,"%d",Rx_Data_BMI270[2]);
-  if(Rx_Data_BMI270[2] == 1)
+  BMI->Tx_Data_Buff[0] = INTERNAL_STATUS | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,3 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[0]);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[1]);
+  // ESP_LOGI(TAG,"%d",BMI->Rx_Data_Buff[2]);
+  if(BMI->Rx_Data_Buff[2] == 1)
   {
     ESP_LOGI(TAG,"BMI-270 initialization OK");
   }
@@ -921,71 +968,71 @@ void BMI270_init(void)
     ESP_LOGW(TAG,"BMI-270 initialization ERROR");
   }
   //Set PWR_CTRL
-  Tx_Data_BMI270[0] = PWR_CTRL | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0x0E;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = PWR_CTRL | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0x0E;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Set ACC CONF
-  Tx_Data_BMI270[0] = ACC_CONF | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0xAF;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = ACC_CONF | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0xAF;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Set GYR CONF
-  Tx_Data_BMI270[0] = GYR_CONF | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0xEF;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = GYR_CONF | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0xEF;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   //Set PWR CONF
-  Tx_Data_BMI270[0] = PWR_CONF | ADDR_WRITE;
-  Tx_Data_BMI270[1] = 0x02;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,2 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
+  BMI->Tx_Data_Buff[0] = PWR_CONF | ADDR_WRITE;
+  BMI->Tx_Data_Buff[1] = 0x02;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
 }
 
-float BMI270_read_Temp(void)
+float BMI270_read_Temp(BMI270_Classdef* BMI)
 {
   float temp = 0.0;
-  Tx_Data_BMI270[0] = TEMPERATURE_0 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,4 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_BMI270,0,TX_BUFF_MAX_LEN);
-  // ESP_LOGI(TAG,"BMI270 Temp: High bit  %hX",Rx_Data_BMI270[3]);
-  // ESP_LOGI(TAG,"BMI270 Temp: LOW bit  %hX",Rx_Data_BMI270[2]);
-  temp = ( (float)(int16_t)( (Rx_Data_BMI270[3] << 8 ) + Rx_Data_BMI270[2] ) / 512.0 ) + 23.0;
+  BMI->Tx_Data_Buff[0] = TEMPERATURE_0 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,4 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  // ESP_LOGI(TAG,"BMI270 Temp: High bit  %hX",BMI->Rx_Data_Buff[3]);
+  // ESP_LOGI(TAG,"BMI270 Temp: LOW bit  %hX",BMI->Rx_Data_Buff[2]);
+  temp = ( (float)(int16_t)( (BMI->Rx_Data_Buff[3] << 8 ) + BMI->Rx_Data_Buff[2] ) / 512.0 ) + 23.0;
   // ESP_LOGI(TAG,"BMI270 Temp: %f",temp);
 
   return temp;
 }
 
-void BMI270_read_GYRO(float *Gx,float *Gy,float *Gz)
+void BMI270_read_GYRO(BMI270_Classdef* BMI, float *Gx,float *Gy,float *Gz)
 {
-  Tx_Data_BMI270[0] = DATA_14 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,8 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  *Gx = ( (float)(int16_t)( (Rx_Data_BMI270[3] << 8) + Rx_Data_BMI270[2] ) * BMI270_GYRO_FS / 32768.0);
-  *Gy = ( (float)(int16_t)( (Rx_Data_BMI270[5] << 8) + Rx_Data_BMI270[4] ) * BMI270_GYRO_FS / 32768.0);
-  *Gz = ( (float)(int16_t)( (Rx_Data_BMI270[7] << 8) + Rx_Data_BMI270[6] ) * BMI270_GYRO_FS / 32768.0);
+  BMI->Tx_Data_Buff[0] = DATA_14 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,8 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  *Gx = ( (float)(int16_t)( (BMI->Rx_Data_Buff[3] << 8) + BMI->Rx_Data_Buff[2] ) * BMI270_GYRO_FS / 32768.0);
+  *Gy = ( (float)(int16_t)( (BMI->Rx_Data_Buff[5] << 8) + BMI->Rx_Data_Buff[4] ) * BMI270_GYRO_FS / 32768.0);
+  *Gz = ( (float)(int16_t)( (BMI->Rx_Data_Buff[7] << 8) + BMI->Rx_Data_Buff[6] ) * BMI270_GYRO_FS / 32768.0);
 }
 
-void BMI270_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz)
+void BMI270_read_ACC_GYRO(BMI270_Classdef* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz)
 {
-  Tx_Data_BMI270[0] = DATA_8 | ADDR_READ;
-  spi_connect_start(SENSOR_HOST,CS_BMI270,&bmi_270,14 * 8,Tx_Data_BMI270,Rx_Data_BMI270);
-  memset(Tx_Data_42688p,0,TX_BUFF_MAX_LEN);
-  *Ax = ( (float)(int16_t)( (Rx_Data_BMI270[3] << 8) + Rx_Data_BMI270[2] ) * BMI270_ACC_FS / 32768.0);
-  *Ay = ( (float)(int16_t)( (Rx_Data_BMI270[5] << 8) + Rx_Data_BMI270[4] ) * BMI270_ACC_FS / 32768.0);
-  *Az = ( (float)(int16_t)( (Rx_Data_BMI270[7] << 8) + Rx_Data_BMI270[6] ) * BMI270_ACC_FS / 32768.0);
-  *Gx = ( (float)(int16_t)( (Rx_Data_BMI270[9] << 8) + Rx_Data_BMI270[8] ) * BMI270_GYRO_FS / 32768.0);
-  *Gy = ( (float)(int16_t)( (Rx_Data_BMI270[11] << 8) + Rx_Data_BMI270[10] ) * BMI270_GYRO_FS / 32768.0);
-  *Gz = ( (float)(int16_t)( (Rx_Data_BMI270[13] << 8) + Rx_Data_BMI270[12] ) * BMI270_GYRO_FS / 32768.0);
+  BMI->Tx_Data_Buff[0] = DATA_8 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,14 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
+  memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  *Ax = ( (float)(int16_t)( (BMI->Rx_Data_Buff[3] << 8) + BMI->Rx_Data_Buff[2] ) * BMI270_ACC_FS / 32768.0);
+  *Ay = ( (float)(int16_t)( (BMI->Rx_Data_Buff[5] << 8) + BMI->Rx_Data_Buff[4] ) * BMI270_ACC_FS / 32768.0);
+  *Az = ( (float)(int16_t)( (BMI->Rx_Data_Buff[7] << 8) + BMI->Rx_Data_Buff[6] ) * BMI270_ACC_FS / 32768.0);
+  *Gx = ( (float)(int16_t)( (BMI->Rx_Data_Buff[9] << 8) + BMI->Rx_Data_Buff[8] ) * BMI270_GYRO_FS / 32768.0);
+  *Gy = ( (float)(int16_t)( (BMI->Rx_Data_Buff[11] << 8) + BMI->Rx_Data_Buff[10] ) * BMI270_GYRO_FS / 32768.0);
+  *Gz = ( (float)(int16_t)( (BMI->Rx_Data_Buff[13] << 8) + BMI->Rx_Data_Buff[12] ) * BMI270_GYRO_FS / 32768.0);
 }
 
-void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B)
+void BMI270_Get_Bais(BMI270_Classdef* BMI, float* Gx_B,float* Gy_B,float* Gz_B)
 {
   float Gx,Gy,Gz;
   float X = 0.0,Y = 0.0,Z = 0.0;
   for(uint16_t i = 0;i < BAIS_CAL_TIMES;i++)
   {
-    BMI270_read_GYRO(&Gx,&Gy,&Gz);
+    BMI270_read_GYRO(BMI, &Gx, &Gy, &Gz);
     X += Gx;
     Y += Gy;
     Z += Gz;
@@ -999,24 +1046,24 @@ void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B)
   ESP_LOGI(TAG,"BMI270 Gz Basic %f",*Gz_B);
 }
 
-void BMP388_init(void)
+void BMP388_init(BMP388_Classdef* BMP)
 {
   //CS pull up
   gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMP388, 1);
 
   spi_reg_device_to_bus(SPI_HOST,6,&bmp_388,BMP388_SPEED_HZ,SENSOR_SPI_MODE);
-  Tx_Data_BMP388[0] = CHIP_ID | ADDR_READ;
-  // Tx_Data_BMP388[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_BMP388,&bmp_388,3 * 8,Tx_Data_BMP388,Rx_Data_BMP388);
-  memset(Tx_Data_BMP388,0,TX_BUFF_MAX_LEN);
-  if(Rx_Data_BMP388[2] == 0x50)
+  BMP->Tx_Data_Buff[0] = CHIP_ID | ADDR_READ;
+  // BMP->Tx_Data_Buff[1] = 0x00;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if(BMP->Rx_Data_Buff[2] == 0x50)
     ESP_LOGI(TAG,"BMP-388 connected");
   else
     ESP_LOGW(TAG,"BMP-388 unconnect......");
 }
 
-void imu_10_data_1_out_to_uart(float Ax,float Ay,float Az,float Gx,float Gy,float Gz,uint32_t index,float Out[10][6])
+void imu_10_data_1_out_to_uart(float Ax, float Ay, float Az, float Gx, float Gy, float Gz, uint32_t index, float Out[10][6])
 {
   Out[index][0] = Ax;
   Out[index][1] = Ay;
@@ -1540,16 +1587,19 @@ void imu_single_solution(float *roll_angle,float *roll_laps,float *pitch_angle,f
 
 void Senser_Class_init(Senser_Classdef *Senser_Class)
 {
-  Senser_Class->init = sensor_init;
+  Senser_Class->init = (void (*)(void*))sensor_init;
 
   IMU_Kalman_Class_init(&Senser_Class->Kalman, 0.0001,
                                             0.1,  0.0,  0.0,  0.1,
                                             0.1,  0.0,  0.0,  0.1,
                                             0.1,  0.0,  0.0,  0.1,
 
-                                            0.02,  0.0,  0.0,  0.02,       //350.0,  0.0,  0.0,  350.0,
-                                            2.5,   0.0,  0.0,  2.5,        //35.0,  0.0,  0.0,  35.0,
-                                            0.2,   0.0,  0.0,  0.2);       //100.0,  0.0,  0.0,  100.0
+                                            350.0,  0.0,  0.0,  350.0,       //350.0,  0.0,  0.0,  350.0,
+                                            250.0,  0.0,  0.0,  250.0,        //35.0,  0.0,  0.0,  35.0,
+                                            150.0,  0.0,  0.0,  150.0);       //100.0,  0.0,  0.0,  100.0
+                                            // .02,  0.0,  0.0,  0.02,
+                                            // 2.5,   0.0,  0.0,  2.5,
+                                            // 0.2,   0.0,  0.0,  0.2
   BMI270_Class_init(&(Senser_Class->BMI270));
   BMP388_Class_init(&(Senser_Class->BMP388));
 
@@ -1561,35 +1611,43 @@ void ICM42688P_Class_init(ICM42688P_Classdef *ICM_Class)
   ICM_Class->Gx_offset = 0.0f;
   ICM_Class->Gy_offset = 0.0f;
   ICM_Class->Gz_offset = 0.0f;
+  bzero(ICM_Class->Rx_Data_Buff, RX_BUFF_MAX_LEN);
+  bzero(ICM_Class->Tx_Data_Buff, TX_BUFF_MAX_LEN);
 
-  ICM_Class->init = ICM_42688P_init;
-  ICM_Class->read_Temp = ICM_42688P_read_Temp;
-  ICM_Class->read_Temp_u16 = ICM_42688P_read_Temp_u16;
-  ICM_Class->read_ACC = ICM_42688P_read_ACC;
-  ICM_Class->read_GYRO = ICM_42688P_read_GYRO;
-  ICM_Class->read_ACC_GYRO = ICM_42688P_read_ACC_GYRO;
-  ICM_Class->read_FIFO = ICM_42688P_read_FIFO;
-  ICM_Class->Get_Bais = ICM_42688P_Get_Bais;
+  ICM_Class->init = (void (*)(void*))ICM_42688P_init;
+  ICM_Class->read_Temp = (float (*)(void*))ICM_42688P_read_Temp;
+  ICM_Class->read_Temp_u16 = (uint16_t (*)(void*))ICM_42688P_read_Temp_u16;
+  ICM_Class->read_ACC = (void (*)(void*, float *Ax, float *Ay, float *Az))ICM_42688P_read_ACC;
+  ICM_Class->read_GYRO = (void (*)(void*, float *Gx, float *Gy, float *Gz))ICM_42688P_read_GYRO;
+  ICM_Class->read_ACC_GYRO = (void (*)(void*, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz))ICM_42688P_read_ACC_GYRO;
+  ICM_Class->read_FIFO = (void (*)(void*))ICM_42688P_read_FIFO;
+  ICM_Class->Get_Bais = (void (*)(void*))ICM_42688P_Get_Bais;
 
   ICM_Class->init(ICM_Class);
 }
 
 void BMI270_Class_init(BMI270_Classdef *BMI_Class)
 {
-  BMI_Class->init = BMI270_init;
-  BMI_Class->read_Temp = BMI270_read_Temp;
-  BMI_Class->read_GYRO = BMI270_read_GYRO;
-  BMI_Class->read_ACC_GYRO = BMI270_read_ACC_GYRO;
-  BMI_Class->Get_Bais = BMI270_Get_Bais;
+  bzero(BMI_Class->Rx_Data_Buff, RX_BUFF_MAX_LEN);
+  bzero(BMI_Class->Tx_Data_Buff, TX_BUFF_MAX_LEN);
 
-  BMI_Class->init();
+  BMI_Class->init = (void (*)(void*))BMI270_init;
+  BMI_Class->read_Temp = (float (*)(void*))BMI270_read_Temp;
+  BMI_Class->read_GYRO = (void (*)(void*, float* Gx, float* Gy, float* Gz))BMI270_read_GYRO;
+  BMI_Class->read_ACC_GYRO = (void (*)(void*, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz))BMI270_read_ACC_GYRO;
+  BMI_Class->Get_Bais = (void (*)(void*, float* Gx_B,float* Gy_B,float* Gz_B))BMI270_Get_Bais;
+
+  BMI_Class->init(BMI_Class);
 }
 
 void BMP388_Class_init(BMP388_Classdef *BMP_Class)
 {
-  BMP_Class->init = BMP388_init;
+  bzero(BMP_Class->Rx_Data_Buff, RX_BUFF_MAX_LEN);
+  bzero(BMP_Class->Tx_Data_Buff, TX_BUFF_MAX_LEN);
 
-  BMP_Class->init();
+  BMP_Class->init = (void (*)(void*))BMP388_init;
+
+  BMP_Class->init(BMP_Class);
 }
 
 void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
@@ -1701,8 +1759,8 @@ void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
   Kalman->Ay = 0.0f;
   Kalman->Az = 0.0f;
 
-  Kalman->init = IMU_Kalman_init;
-  Kalman->update = IMU_Kalman_update;
+  Kalman->init = (void (*)(void*))IMU_Kalman_init;
+  Kalman->update = (void (*)(void*, float t, float U_roll, float U_pitch, float U_yaw))IMU_Kalman_update;
 
   ICM42688P_Class_init(&(Kalman->ICM42688P));
 

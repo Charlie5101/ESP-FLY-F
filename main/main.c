@@ -38,6 +38,8 @@
 #define Task_RGB_LED_Prio     3
 #define Task_receiver_Stack   4096
 #define Task_receiver_Prio    3
+#define Task_Link_Check_Stack 4096
+#define Task_Link_Check_Prio  3
 #define Task_UpMonitor_Stack  4096
 #define Task_UpMonitor_Prio   1
 #define Task_Wifi_Recv_Stack  4096
@@ -76,6 +78,7 @@ TaskHandle_t Motor_Handle;
 TaskHandle_t GPS_Handle;
 TaskHandle_t RGB_LED_Handle;
 TaskHandle_t Receiver_Handle;
+TaskHandle_t Link_Check_Handle;
 TaskHandle_t UpMonitor_Handle;
 TaskHandle_t Wifi_Recv_Handle;
 
@@ -90,21 +93,26 @@ void Task_motor(void *arg);
 void Task_GPS(void *arg);
 void Task_RGB_LED(void *arg);
 void Task_receiver(void *arg);
+void Task_Link_Check(void *arg);
 void Task_UpMonitor(void *arg);
 void Task_Wifi_Recv(void *arg);
 
 /*Class*/
 Senser_Classdef Senser;
-myPID_Classdef Pitch_pid;
+DRAM_ATTR myPID_Classdef Roll_pid;
+DRAM_ATTR myPID_Classdef Pitch_pid;
+DRAM_ATTR myPID_Classdef Yaw_pid;
 Receiver_Classdef Receiver;
+DSHOT_Classdef DSHOT;
+Servo_Classdef Servo;
+Indicator_Classdef Indicator;
 
 /*Var*/
-DRAM_ATTR myPID pitch_pid;
-DRAM_ATTR myPID roll_pid;
-DRAM_ATTR myPID yaw_pid;
 DRAM_ATTR float pitch_target = 0.0f;
 DRAM_ATTR float roll_target = 0.0f;
 DRAM_ATTR float yaw_target = 0.0f;
+
+SemaphoreHandle_t Motor_Adjust;
 
 float ICM_temp = 0.0f;
 float BMI_temp = 0.0f;
@@ -132,8 +140,6 @@ float BMI_Gy_offset = 0.0;
 float ICM_Gz_offset = 0.25278f;     //0.111362f
 float BMI_Gz_offset = 0.11278;
 
-imu_Kalman ICM_Kalman = {0};
-
 indicator_bre indicator_Bre;
 
 uint8_t app_main(void)
@@ -150,9 +156,9 @@ uint8_t app_main(void)
   spi_bus_init(SPI_HOST,SPI_MOSI,SPI_MISO,SPI_SCLK,4092 * 3);
   spi_bus_init(SPI_SECOND_HOST,indicator_io,-1,-1,4092);
   //Create semaphores
-
+  Motor_Adjust = xSemaphoreCreateBinary();
   //Create tasks
-  xTaskCreatePinnedToCore(Task_MAIN,      "main task",      Task_MAIN_Stack,      NULL, Task_MAIN_Prio,       &MAIN_Handle,      0);
+  xTaskCreatePinnedToCore(Task_MAIN,      "main task",      Task_MAIN_Stack,      NULL, Task_MAIN_Prio,       &MAIN_Handle,      1);
   #if SENSOR_ENABLE == 1
   xTaskCreatePinnedToCore(Task_sensor,    "IMU task",       Task_sensor_Stack,    NULL, Task_sensor_Prio,     &Sensor_Handle,    1);
   #endif
@@ -197,19 +203,22 @@ uint8_t app_main(void)
  */
 void Task_MAIN(void *arg)
 {
-  PID_param_init(&pitch_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0);
-  PID_param_init(&roll_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0);
-  PID_param_init(&yaw_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0);
+  myPID_Class_init(&Roll_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  myPID_Class_init(&Pitch_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  myPID_Class_init(&Yaw_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
   control_timer_create();
   vTaskDelay(1000);
   control_intr_enable_and_start();
   for(;;)
   {
     xSemaphoreTake(Pid_Contrl,portMAX_DELAY);
-    PID_cal(&pitch_pid, Pitch, pitch_target);
-    PID_cal(&roll_pid, Roll, roll_target);
-    PID_cal(&yaw_pid, Yaw, yaw_target);
-    // vTaskDelay(10);
+    Roll_pid.update(&Roll_pid, roll_target, Roll);
+    Pitch_pid.update(&Pitch_pid, pitch_target, Pitch);
+    Yaw_pid.update(&Yaw_pid, yaw_target, Yaw);
+    Roll_pid.cal(&Roll_pid);
+    Pitch_pid.cal(&Pitch_pid);
+    Yaw_pid.cal(&Yaw_pid);
+    xSemaphoreGive(Motor_Adjust);
   }
 }
 
@@ -221,18 +230,6 @@ void Task_MAIN(void *arg)
 void Task_sensor(void *arg)
 {
   Senser_Class_init(&Senser);
-
-  static float ICM_R0 = 0;
-  static float ICM_R1 = 0;
-  static float ICM_R2 = 0;
-
-  ESP_LOGI("sensor","Bais Get SUCCESS!");
-  
-  ICM_Get_R_Matrix(&Senser.Kalman.ICM42688P, &ICM_R0, &ICM_R1, &ICM_R2);
-  ESP_LOGI("sensor","ICM_R0 : %f",ICM_R0);
-  ESP_LOGI("sensor","ICM_R1 : %f",ICM_R1);
-  ESP_LOGI("sensor","ICM_R2 : %f",ICM_R2);
-
   imu_timer_create();
   vTaskDelay(10000);
   uint32_t time_k = xTaskGetTickCount();
@@ -240,7 +237,7 @@ void Task_sensor(void *arg)
 
   for(;;)
   {
-    xSemaphoreTake(Sensor_get_data,portMAX_DELAY);
+    xSemaphoreTake(Sensor_get_data, portMAX_DELAY);
     imu_timer_stop();
     
     t = 0.001 * (float)(xTaskGetTickCount() - time_k);
@@ -285,14 +282,15 @@ void Task_black_box(void *arg)
  */
 void Task_indicator(void *arg)
 {
-  indicator_init();
+  Indicator_Class_init(&Indicator);
   vTaskDelay(10);
-  indicator_set(80,0,0);
+  Indicator.Color_Set(&Indicator, 80, 0, 0);
   vTaskDelay(250);
-  indicator_breath_init(&indicator_Bre,0,0,255,255);
+  Indicator.Bre_init(&Indicator.Bre, 0, 0, 255, 255);
+  Indicator.Send_Message(&Indicator, 0, 0, 255, Breath, 255);
   for(;;)
   {
-    indicator_breath_cal(&indicator_Bre);
+    Indicator.Adjust(&Indicator);
     vTaskDelay(5);
   }
 }
@@ -330,38 +328,30 @@ void Task_bat_adc(void *arg)
  */
 void Task_motor(void *arg)
 {
-  // static uint16_t M1_throttle = 2047;
+  static uint16_t M1_throttle = 0;
 
-  DSHOT_init();
-  // motor_init();
-  servo_init();
-  // motor_throttle_set(1,100.0);
-  // motor_throttle_set(2,75.0);
-  // motor_throttle_set(3,50.0);
-  // motor_throttle_set(4,25.0);
-  servo_out_set(1,23.0);
-  servo_out_set(2,35.0);
-  servo_out_set(3,67.0);
-  servo_out_set(4,89.0);
-  // DSHOT_throttle_set(1,M1_throttle);
-  for(uint8_t i=0;i<4;i++)
+  DSHOT_Class_init(&DSHOT);
+  Servo_Class_init(&Servo);
+
+  Servo.Set_Out(1, 23.0);
+  Servo.Set_Out(2, 35.0);
+  Servo.Set_Out(3, 67.0);
+  Servo.Set_Out(4, 89.0);
+  for(uint8_t i=1;i<5;i++)
   {
-    DSHOT_esc_unlock(i);
+    DSHOT.ESC_unLock(&DSHOT, i);
   }
+  vTaskDelay(10000);
   
-  vTaskDelay(100);
   for(;;)
   {
-    // if(M1_throttle < 2000)
-    // {
-    //   M1_throttle += 10;
-    // }
-    // else
-    // {
-    //   M1_throttle = 0;
-    // }
-    // DSHOT_throttle_set(1,M1_throttle);
-    vTaskDelay(100);
+    xSemaphoreTake(Motor_Adjust, portMAX_DELAY);
+    // ESP_LOGI("MOTOR", "%d:", M1_throttle);
+    for(uint8_t i=1;i<5;i++)
+    {
+      DSHOT.Set_Throttle(&DSHOT, i, M1_throttle);
+    }
+    // vTaskDelay(100);
   }
 }
 
@@ -398,19 +388,44 @@ void Task_RGB_LED(void *arg)
  */
 void Task_receiver(void *arg)
 {
-
-
   Receiver_Class_init(&Receiver);
   Receiver.crsf.crc8_init(&Receiver);
+  xTaskCreatePinnedToCore(Task_Link_Check,  "Receiver Link Check",  Task_Link_Check_Stack, NULL, Task_Link_Check_Prio,  &Link_Check_Handle, 0);
   for(;;)
   {
-    xSemaphoreTake(Uart_data_rec, portMAX_DELAY);
+    xSemaphoreTake(Uart2_data_rec, portMAX_DELAY);
     if( Receiver.crsf.crc_check(&Receiver, &Receiver.dtmp[2]) == true )
     {
+      Receiver.LinkNum = 100;
       Receiver.crsf.decode(&Receiver);
     }
-    // uart_write_bytes(EX_UART_NUM, (const char *)"ONLINE\n", sizeof("ONLINE\n"));
-    // vTaskDelay(3000);
+  }
+}
+
+/**
+ * @brief 
+ * 
+ * @param arg 
+ */
+void Task_Link_Check(void *arg)
+{
+  for(;;)
+  {
+    if(Receiver.LinkNum > 0)
+    {
+      if(Receiver.LinkState != true)
+        Indicator.Send_Message(&Indicator, 0, 0, 255, Breath, 255);
+      Receiver.LinkState = true;
+      Receiver.LinkNum--;
+    }
+    else
+    {
+      if(Receiver.LinkState != false)
+        Indicator.Send_Message(&Indicator, 255, 0, 0, Breath, 60);
+      Receiver.LinkState = false;
+      // ESP_LOGW("LINK STATE","FALSE");
+    }
+    vTaskDelay(3);
   }
 }
 
@@ -452,15 +467,16 @@ void Task_UpMonitor(void *arg)
     // Line.data[3] = BMI_Gz;
     // Line.data[4] = Gz_Kalman_BMI.X[1];
 
-    Line.data[0] = Receiver.main_data.ch0 * 1000.0f;
-    Line.data[1] = Receiver.main_data.ch1 * 1000.0f;
-    Line.data[2] = Receiver.main_data.ch2 * 1000.0f;
-    Line.data[3] = Receiver.main_data.ch3 * 1000.0f;
+    // Line.data[0] = (Receiver.main_data.ch2 * 1024 + 1024);
+    // // Line.data[0] = Receiver.main_data.ch0 * 1000.0f;
+    // Line.data[1] = Receiver.main_data.ch1 * 1000.0f;
+    // Line.data[2] = Receiver.main_data.ch2 * 1000.0f;
+    // Line.data[3] = Receiver.main_data.ch3 * 1000.0f;
 
-    // Line.data[0] = Gx;
-    // Line.data[1] = Roll;
-    // Line.data[2] = Senser.Kalman.Gx;
-    // Line.data[3] = Gy;
+    Line.data[0] = Gx;
+    Line.data[1] = Roll;
+    Line.data[2] = Senser.Kalman.Gx;
+    Line.data[3] = Gy;
     Line.data[4] = Pitch;
     Line.data[5] = Senser.Kalman.Gy;
     Line.data[6] = Gz;
@@ -497,19 +513,17 @@ void Task_Wifi_Recv(void *arg)
       myWifi_vofa_stop();
 
       ESP_LOGI("OTA","Now going to OTA....");
-      indicator_breath_set(&indicator_Bre,0,255,0,255);
+      // Indicator.Bre_Color_Set(&Indicator, 0, 255, 0, 255);
+      Indicator.Send_Message(&Indicator, 255, 0, 255, Breath, 255);
       OTA_update();
     }
     vTaskDelay(10);
   }
 }
 
-QueueHandle_t uart0_queue;
-
 void uart_event_task(QueueHandle_t* queue)
 {
   uart_event_t event;
-  size_t buffered_size;
   uint8_t *dtmp = (uint8_t *)malloc(UART_RD_BUFF_SIZE);
   for(;;)
   {
@@ -531,7 +545,7 @@ void uart_event_task(QueueHandle_t* queue)
         // uart_write_bytes(EX_UART_NUM, (const char *)dtmp, event.size);
 
         Receiver.rec_data(&Receiver, dtmp, event.size);
-        xSemaphoreGive(Uart_data_rec);
+        xSemaphoreGive(Uart2_data_rec);
 
         break;
       // Event of HW FIFO overflow detected
@@ -569,6 +583,5 @@ void uart_event_task(QueueHandle_t* queue)
         break;
       }
     }
-    // vTaskDelay(1);W
   }
 }

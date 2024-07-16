@@ -230,3 +230,18 @@ void dshot_send(uint16_t esc_throttle, bool telemetry, DSHOT_Channel_handle_t es
   };
   ESP_ERROR_CHECK(rmt_transmit(esc_channel, dshot_encoder, &throttle, sizeof(throttle), &tx_config));
 }
+
+void dshot_send_times(uint16_t times, uint16_t esc_throttle, bool telemetry, DSHOT_Channel_handle_t esc_channel, DSHOT_encoder_handle_t dshot_encoder)
+{
+  //refresh
+  rmt_disable(esc_channel);
+  rmt_enable(esc_channel);
+  rmt_transmit_config_t tx_config = {
+      .loop_count = times, // infinite loop
+  };
+  dshot_esc_throttle_t throttle = {
+      .throttle = esc_throttle,
+      .telemetry_req = telemetry,
+  };
+  ESP_ERROR_CHECK(rmt_transmit(esc_channel, dshot_encoder, &throttle, sizeof(throttle), &tx_config));
+}

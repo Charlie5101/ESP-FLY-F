@@ -16,7 +16,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-
 #include "bsp_uart.h"
 
 #define CRSF_RECEIVER
@@ -67,7 +66,7 @@
 #define CRSF_MSP_RESP_PAYLOAD_SIZE 58
 #define CRSF_MSP_MAX_PAYLOAD_SIZE (CRSF_MSP_REQ_PAYLOAD_SIZE > CRSF_MSP_RESP_PAYLOAD_SIZE ? CRSF_MSP_REQ_PAYLOAD_SIZE : CRSF_MSP_RESP_PAYLOAD_SIZE)
 
-typedef enum uint8_t
+typedef enum
 {
 	CRSF_FRAMETYPE_GPS = 0x02,
 	CRSF_FRAMETYPE_VARIO = 0x07,
@@ -515,8 +514,6 @@ static inline uint32_t be32toh(uint32_t val)
 
 #define REC_BUFF_LEN		1024
 
-extern QueueHandle_t uart0_queue;
-
 typedef struct
 {
 	struct
@@ -543,8 +540,9 @@ typedef struct
 	{
 		uint8_t len;
 		uint8_t inCrc;
-
 		uint8_t crc8_table[256];
+		crsfLinkStatistics_t LinkInfo;
+
 		void (*crc8_init)(void *Receiver);
 		uint8_t (*crc_check)(void* Receiver, uint8_t* pdata);
 		void (*decode)(void *Receiver);
@@ -552,6 +550,9 @@ typedef struct
 
 	uint8_t dtmp[REC_BUFF_LEN];
 	uint16_t dlen;
+
+	bool LinkState;
+	uint8_t LinkNum;
 
 	QueueHandle_t queue;
 
@@ -561,9 +562,10 @@ typedef struct
 }Receiver_Classdef;
 
 void Receiver_Class_init(Receiver_Classdef* Receiver);
+/*
 void Receiver_init(Receiver_Classdef* Receiver);
 void Receiver_rec_data(Receiver_Classdef* Receiver, uint8_t* pdata, uint16_t len);
 void CRSF_crc8_init(Receiver_Classdef* Receiver);
 uint8_t CRSF_crc8_check(Receiver_Classdef* Receiver, uint8_t* pdata);
 void CRSF_decode(Receiver_Classdef* Receiver);
-
+*/

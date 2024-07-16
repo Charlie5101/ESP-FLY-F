@@ -11,34 +11,44 @@
 #define REC_BAUDRATE 420000
 #endif
 
+void Receiver_init(Receiver_Classdef* Receiver);
+void Receiver_rec_data(Receiver_Classdef* Receiver, uint8_t* pdata, uint16_t len);
+void CRSF_crc8_init(Receiver_Classdef* Receiver);
+uint8_t CRSF_crc8_check(Receiver_Classdef* Receiver, uint8_t* pdata);
+void CRSF_decode(Receiver_Classdef* Receiver);
+
 void Receiver_Class_init(Receiver_Classdef* Receiver)
 {
   Receiver->main_data.ch0 = Receiver->main_data.ch1 = Receiver->main_data.ch3 = Receiver->main_data.ch4 =
   Receiver->main_data.ch5 = Receiver->main_data.ch6 = Receiver->main_data.ch7 = Receiver->main_data.ch8 =
   Receiver->main_data.ch9 = Receiver->main_data.ch10 = Receiver->main_data.ch11 = Receiver->main_data.ch12 =
   Receiver->main_data.ch13 = Receiver->main_data.ch14 = Receiver->main_data.ch15 = 0.0f;
-  bzero(&Receiver->dtmp, REC_BUFF_LEN);
+  bzero(Receiver->dtmp, REC_BUFF_LEN);
   Receiver->dlen = 0;
+  Receiver->LinkState = false;
+  Receiver->LinkNum = 0;
+  bzero(Receiver->crsf.crc8_table, 256);
+  bzero(&Receiver->crsf.LinkInfo, LinkStatisticsFrameLength);
 
-  Receiver->init = Receiver_init;
-  Receiver->rec_data = Receiver_rec_data;
-  Receiver->crsf.crc8_init = CRSF_crc8_init;
-  Receiver->crsf.crc_check = CRSF_crc8_check;
-  Receiver->crsf.decode = CRSF_decode;
+  Receiver->init = (void (*)(void*))Receiver_init;
+  Receiver->rec_data = (void (*)(void*, uint8_t* pdata, uint16_t len))Receiver_rec_data;
+  Receiver->crsf.crc8_init = (void (*)(void*))CRSF_crc8_init;
+  Receiver->crsf.crc_check = (uint8_t (*)(void*, uint8_t* pdata))CRSF_crc8_check;
+  Receiver->crsf.decode = (void (*)(void*))CRSF_decode;
 
   Receiver->init(Receiver);
 }
 
 void Receiver_init(Receiver_Classdef* Receiver)
 {
-  uart_init(RECEIVER_UART, REC_BAUDRATE, REC_TX, REC_RX, 1024 * 2, 1024 * 2, 10, &Receiver->queue);
+  uart_init(RECEIVER_UART, REC_BAUDRATE, REC_TX, REC_RX, 1024 * 2, 1024 * 2, 20, &Receiver->queue);
   // uart_intr_cfg(RECEIVER_UART, 0x80, 2, 20, 0);     //Enable UART_BRK_DET_INT
   // uart_disable_rx_intr(RECEIVER_UART);
   // uart_intr_cfg(RECEIVER_UART, 128, 10, 20, 0);
   // uart_rx_intr_enable(RECEIVER_UART);
   // uart_enable_intr_mask(RECEIVER_UART, 128);
   // uart_enable_rx_intr(RECEIVER_UART);
-  uart_intr_event_serve_create(&Receiver->queue);
+  uart_intr_event_serve_create(&Uart2_data_rec, (TaskFunction_t)uart_event_task, &Receiver->queue, &Uart2_event_Handle);
 }
 
 void Receiver_rec_data(Receiver_Classdef* Receiver, uint8_t* pdata, uint16_t len)
@@ -89,23 +99,23 @@ void CRSF_decode(Receiver_Classdef* Receiver)
       switch (hdr->type)
       {
         case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
-          rcPacket_t *pack = (rcPacket_t*)&Receiver->dtmp[0];
-          Receiver->main_data.ch0 = ( (float)pack->channels.ch0 - 1024 ) / 1024;
-          Receiver->main_data.ch1 = ( (float)pack->channels.ch1 - 1024 ) / 1024;
-          Receiver->main_data.ch2 = ( (float)pack->channels.ch2 - 1024 ) / 1024;
-          Receiver->main_data.ch3 = ( (float)pack->channels.ch3 - 1024 ) / 1024;
-          Receiver->main_data.ch4 = ( (float)pack->channels.ch4 - 1024 ) / 1024;
-          Receiver->main_data.ch5 = ( (float)pack->channels.ch5 - 1024 ) / 1024;
-          Receiver->main_data.ch6 = ( (float)pack->channels.ch6 - 1024 ) / 1024;
-          Receiver->main_data.ch7 = ( (float)pack->channels.ch7 - 1024 ) / 1024;
-          Receiver->main_data.ch8 = ( (float)pack->channels.ch8 - 1024 ) / 1024;
-          Receiver->main_data.ch9 = ( (float)pack->channels.ch9 - 1024 ) / 1024;
-          Receiver->main_data.ch10 = ( (float)pack->channels.ch10 - 1024 ) / 1024;
-          Receiver->main_data.ch11 = ( (float)pack->channels.ch11 - 1024 ) / 1024;
-          Receiver->main_data.ch12 = ( (float)pack->channels.ch12 - 1024 ) / 1024;
-          Receiver->main_data.ch13 = ( (float)pack->channels.ch13 - 1024 ) / 1024;
-          Receiver->main_data.ch14 = ( (float)pack->channels.ch14 - 1024 ) / 1024;
-          Receiver->main_data.ch15 = ( (float)pack->channels.ch15 - 1024 ) / 1024;
+          rcPacket_t *rcPack = (rcPacket_t*)&Receiver->dtmp[0];
+          Receiver->main_data.ch0 = ( (float)rcPack->channels.ch0 - 1024 ) / 1024;
+          Receiver->main_data.ch1 = ( (float)rcPack->channels.ch1 - 1024 ) / 1024;
+          Receiver->main_data.ch2 = ( (float)rcPack->channels.ch2 - 1024 ) / 1024;
+          Receiver->main_data.ch3 = ( (float)rcPack->channels.ch3 - 1024 ) / 1024;
+          Receiver->main_data.ch4 = ( (float)rcPack->channels.ch4 - 1024 ) / 1024;
+          Receiver->main_data.ch5 = ( (float)rcPack->channels.ch5 - 1024 ) / 1024;
+          Receiver->main_data.ch6 = ( (float)rcPack->channels.ch6 - 1024 ) / 1024;
+          Receiver->main_data.ch7 = ( (float)rcPack->channels.ch7 - 1024 ) / 1024;
+          Receiver->main_data.ch8 = ( (float)rcPack->channels.ch8 - 1024 ) / 1024;
+          Receiver->main_data.ch9 = ( (float)rcPack->channels.ch9 - 1024 ) / 1024;
+          Receiver->main_data.ch10 = ( (float)rcPack->channels.ch10 - 1024 ) / 1024;
+          Receiver->main_data.ch11 = ( (float)rcPack->channels.ch11 - 1024 ) / 1024;
+          Receiver->main_data.ch12 = ( (float)rcPack->channels.ch12 - 1024 ) / 1024;
+          Receiver->main_data.ch13 = ( (float)rcPack->channels.ch13 - 1024 ) / 1024;
+          Receiver->main_data.ch14 = ( (float)rcPack->channels.ch14 - 1024 ) / 1024;
+          Receiver->main_data.ch15 = ( (float)rcPack->channels.ch15 - 1024 ) / 1024;
           break;
         case CRSF_FRAMETYPE_GPS:
           break;
@@ -116,6 +126,20 @@ void CRSF_decode(Receiver_Classdef* Receiver)
         case CRSF_FRAMETYPE_BARO_ALTITUDE:
           break;
         case CRSF_FRAMETYPE_LINK_STATISTICS:
+          crsfLinkStatistics_t *LinkPack = (crsfLinkStatistics_t*)&Receiver->dtmp[3];
+          memcpy(&Receiver->crsf.LinkInfo, LinkPack, LinkStatisticsFrameLength);
+          // ESP_LOGI("RECEIVER","-------------------------------------------------------------");
+          // ESP_LOGI("RECEIVER","UPLink RSSI 1:  %d",LinkPack->uplink_RSSI_1);
+          // ESP_LOGI("RECEIVER","UPLink RSSI 2:  %d",LinkPack->uplink_RSSI_2);
+          // ESP_LOGI("RECEIVER","UPLink Link Quality:  %d",LinkPack->uplink_Link_quality);
+          // ESP_LOGI("RECEIVER","UPLink SNR:  %d",LinkPack->uplink_SNR);
+          // ESP_LOGI("RECEIVER","Active Antenna:  %d",LinkPack->active_antenna);
+          // ESP_LOGI("RECEIVER","RF Mode:  %d",LinkPack->rf_Mode);
+          // ESP_LOGI("RECEIVER","UPLink TX Power:  %d",LinkPack->uplink_TX_Power);
+          // ESP_LOGI("RECEIVER","DownLink RSSI:  %d",LinkPack->downlink_RSSI);
+          // ESP_LOGI("RECEIVER","DownLink Link Quality:  %d",LinkPack->downlink_Link_quality);
+          // ESP_LOGI("RECEIVER","DownLink SNR:  %d",LinkPack->downlink_SNR);
+          // ESP_LOGI("RECEIVER","-------------------------------------------------------------");
           break;
         case CRSF_FRAMETYPE_OPENTX_SYNC:
           break;

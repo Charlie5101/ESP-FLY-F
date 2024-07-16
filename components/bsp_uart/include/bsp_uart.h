@@ -56,7 +56,10 @@ bit Reset
 19  0     UART_WAKEUP_INT_ENA UART_WAKEUP_INT 的使能位。(R/W)
 */
 
-extern SemaphoreHandle_t Uart_data_rec;
+extern TaskHandle_t Uart2_event_Handle;
+extern SemaphoreHandle_t Uart0_data_rec;
+extern SemaphoreHandle_t Uart1_data_rec;
+extern SemaphoreHandle_t Uart2_data_rec;
 
 typedef enum
 {
@@ -77,7 +80,8 @@ void uart_intr_cfg(uart_num_t uart_num, uint32_t mask, uint8_t rx_tout_thresh, u
 void uart_rx_intr_enable(uart_num_t uart_num);
 void uart_rx_intr_disable(uart_num_t uart_num);
 void uart_event_task(QueueHandle_t *queue);
-void uart_intr_event_serve_create(QueueHandle_t *queue);
+// void uart_intr_event_serve_create(QueueHandle_t *queue);
+void uart_intr_event_serve_create(SemaphoreHandle_t* Semaphore, TaskFunction_t pTask, QueueHandle_t *queue, TaskHandle_t *const pHandle);
 
 
 #endif

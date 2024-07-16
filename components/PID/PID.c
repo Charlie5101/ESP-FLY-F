@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include "PID.h"
 
+void myPID_init(myPID_Classdef* myPID);
+void myPID_param_switch(myPID_Classdef* myPID,float Kp,float Ki,float Kd,float P_Limit,float I_Limit,float D_Limit);
+void myPID_update(myPID_Classdef *myPID, float Target, float Current);
+void myPID_cal(myPID_Classdef* myPID);
+
 void PID_param_init(myPID *PID,float Kp,float Ki,float Kd,float P_Limit,float I_Limit,float D_Limit)
 {
   PID->Kp = Kp;
@@ -109,9 +114,9 @@ int32_t intPID_cal(intmyPID *PID,int32_t Current,int32_t Target)
   return PID->OUT;
 }
 
-void myPID_Class_init(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit)
+void myPID_Class_init(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit, float OUT_Limit)
 {
-  myPID->out.P = myPID->out.I = myPID->out.D = 0.0f;
+  myPID->T_out.P = myPID->T_out.I = myPID->T_out.D = 0.0f;
   myPID->OUT = 0.0f;
   myPID->data.Target = myPID->data.Current = myPID->data.Error = myPID->data.Last_Error = 0.0f;
   myPID->param.Kp = Kp;
@@ -120,11 +125,12 @@ void myPID_Class_init(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float
   myPID->param.P_Limit = P_Limit;
   myPID->param.I_Limit = I_Limit;
   myPID->param.D_Limit = D_Limit;
+  myPID->param.OUT_Limit = OUT_Limit;
 
-  myPID->init = myPID_init;
-  myPID->switch_param = myPID_param_switch;
-  myPID->update = myPID_update;
-  myPID->cal = myPID_cal;
+  myPID->init = (void (*)(void*))myPID_init;
+  myPID->switch_param = (void (*)(void*, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit))myPID_param_switch;
+  myPID->update = (void (*)(void*, float Target, float Current))myPID_update;
+  myPID->cal = (void (*)(void*))myPID_cal;
 
   myPID->init(myPID);
 }
@@ -134,7 +140,7 @@ void myPID_init(myPID_Classdef* myPID)
 
 }
 
-void myPID_param_switch(myPID_Classdef* myPID,float Kp,float Ki,float Kd,float P_Limit,float I_Limit,float D_Limit)
+void myPID_param_switch(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit)
 {
   myPID->param.Kp = Kp;
   myPID->param.Ki = Ki;
@@ -158,18 +164,20 @@ void myPID_cal(myPID_Classdef* myPID)
 {
   //Parallel PID
   myPID->data.Error = myPID->data.Target - myPID->data.Current;
-  myPID->out.P = myPID->param.Kp * myPID->data.Error;
-  myPID->out.I = myPID->param.Ki * myPID->data.Error + myPID->out.I;
-  myPID->out.D = myPID->param.Kd * ( myPID->data.Error - myPID->data.Last_Error );
+  myPID->T_out.P = myPID->param.Kp * myPID->data.Error;
+  myPID->T_out.I = myPID->param.Ki * myPID->data.Error + myPID->T_out.I;
+  myPID->T_out.D = myPID->param.Kd * ( myPID->data.Error - myPID->data.Last_Error );
   myPID->data.Last_Error = myPID->data.Error;
   //Limit
-  if(fabsf(myPID->out.P) > myPID->param.P_Limit)
-    myPID->out.P = myPID->param.P_Limit * (myPID->out.P / fabsf(myPID->out.P));
-  if(fabsf(myPID->out.I) > myPID->param.I_Limit)
-    myPID->out.I = myPID->param.I_Limit * (myPID->out.I / fabsf(myPID->out.I));
-  if(fabsf(myPID->out.D) > myPID->param.D_Limit)
-    myPID->out.D = myPID->param.D_Limit * (myPID->out.D / fabsf(myPID->out.D));
+  if(fabsf(myPID->T_out.P) > myPID->param.P_Limit)
+    myPID->T_out.P = myPID->param.P_Limit * (myPID->T_out.P / fabsf(myPID->T_out.P));
+  if(fabsf(myPID->T_out.I) > myPID->param.I_Limit)
+    myPID->T_out.I = myPID->param.I_Limit * (myPID->T_out.I / fabsf(myPID->T_out.I));
+  if(fabsf(myPID->T_out.D) > myPID->param.D_Limit)
+    myPID->T_out.D = myPID->param.D_Limit * (myPID->T_out.D / fabsf(myPID->T_out.D));
 
-  myPID->OUT = myPID->out.P + myPID->out.I + myPID->out.D;
+  myPID->OUT = myPID->T_out.P + myPID->T_out.I + myPID->T_out.D;
+  if(fabsf(myPID->OUT) > myPID->param.OUT_Limit)
+    myPID->OUT = myPID->param.OUT_Limit * (myPID->OUT / fabsf(myPID->OUT));
 }
 
