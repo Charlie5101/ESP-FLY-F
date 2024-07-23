@@ -13,6 +13,7 @@ void DSHOT_throttle_set(DSHOT_Classdef* DSHOT, uint8_t id, uint16_t throttle);
 void DSHOT_enter_set(DSHOT_Classdef* DSHOT, uint8_t id);
 void DSHOT_exit_and_save_set(DSHOT_Classdef* DSHOT, uint8_t id);
 void DSHOT_esc_rotation_reverse(DSHOT_Classdef* DSHOT, uint8_t id);
+void DSHOT_set_all_throttle(DSHOT_Classdef* DSHOT, uint16_t throttle_A, uint16_t throttle_B, uint16_t throttle_C, uint16_t throttle_D);
 
 void motor_init(void);
 void servo_init(void);
@@ -110,27 +111,24 @@ void DSHOT_esc_rotation_set(DSHOT_Classdef* DSHOT, uint8_t id, uint8_t dir)
 
 void DSHOT_throttle_set(DSHOT_Classdef* DSHOT, uint8_t id, uint16_t throttle)
 {
-  if(throttle > 2047)
+  if(throttle > 1999)
   {
-    throttle = 2047;
+    throttle = 1999;
   }
-  else if(throttle < 48)
-  {
-    throttle = 48;
-  }
+
   switch(id)
   {
   case 1:
-    dshot_send(throttle, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
+    dshot_send(throttle + 48, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
     break;
   case 2:
-    dshot_send(throttle, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
+    dshot_send(throttle + 48, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
     break;
   case 3:
-    dshot_send(throttle, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
+    dshot_send(throttle + 48, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
     break;
   case 4:
-    dshot_send(throttle, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
+    dshot_send(throttle + 48, false, DSHOT->dshot_channal[id-1], DSHOT->dshot_encoder[id-1]);
     break;
   default:
     break;
@@ -200,6 +198,14 @@ void DSHOT_esc_rotation_reverse(DSHOT_Classdef* DSHOT, uint8_t id)
   }
 }
 
+void DSHOT_set_all_throttle(DSHOT_Classdef* DSHOT, uint16_t throttle_A, uint16_t throttle_B, uint16_t throttle_C, uint16_t throttle_D)
+{
+  DSHOT_throttle_set(DSHOT, 1, throttle_A);
+  DSHOT_throttle_set(DSHOT, 2, throttle_B);
+  DSHOT_throttle_set(DSHOT, 3, throttle_C);
+  DSHOT_throttle_set(DSHOT, 4, throttle_D);
+}
+
 void DSHOT_Class_init(DSHOT_Classdef* DSHOT)
 {
   DSHOT->motor_io[0] = M1_IO;
@@ -224,6 +230,7 @@ void DSHOT_Class_init(DSHOT_Classdef* DSHOT)
   DSHOT->Enter_Set = (void (*)(void*, uint8_t id))DSHOT_enter_set;
   DSHOT->Exit_and_Save_Set = (void (*)(void*, uint8_t id))DSHOT_exit_and_save_set;
   DSHOT->ESC_Rotation_Reverse = (void (*)(void*, uint8_t id))DSHOT_esc_rotation_reverse;
+  DSHOT->Set_All_Throttle = (void (*)(void*, uint16_t throttle_A, uint16_t throttle_B, uint16_t throttle_C, uint16_t throttle_D))DSHOT_set_all_throttle;
 
   DSHOT->init(DSHOT);
 }

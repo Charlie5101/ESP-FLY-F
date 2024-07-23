@@ -102,7 +102,7 @@ void CRSF_decode(Receiver_Classdef* Receiver)
           rcPacket_t *rcPack = (rcPacket_t*)&Receiver->dtmp[0];
           Receiver->main_data.ch0 = ( (float)rcPack->channels.ch0 - 1024 ) / 1024;
           Receiver->main_data.ch1 = ( (float)rcPack->channels.ch1 - 1024 ) / 1024;
-          Receiver->main_data.ch2 = ( (float)rcPack->channels.ch2 - 1024 ) / 1024;
+          Receiver->main_data.ch2 = ( (float)rcPack->channels.ch2 ) / 2048;  //throttle
           Receiver->main_data.ch3 = ( (float)rcPack->channels.ch3 - 1024 ) / 1024;
           Receiver->main_data.ch4 = ( (float)rcPack->channels.ch4 - 1024 ) / 1024;
           Receiver->main_data.ch5 = ( (float)rcPack->channels.ch5 - 1024 ) / 1024;

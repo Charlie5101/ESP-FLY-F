@@ -49,6 +49,7 @@ typedef struct
   void (*Enter_Set)(void* DSHOT, uint8_t id);
   void (*Exit_and_Save_Set)(void* DSHOT, uint8_t id);
   void (*ESC_Rotation_Reverse)(void* DSHOT, uint8_t id);
+  void (*Set_All_Throttle)(void* DSHOT, uint16_t throttle_A, uint16_t throttle_B, uint16_t throttle_C, uint16_t throttle_D);
 }DSHOT_Classdef;
 
 typedef struct

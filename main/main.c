@@ -16,11 +16,12 @@
 #include "Kalman.h"
 #include "PID.h"
 #include "receiver.h"
+#include "Control.h"
 
 /*task config*/
 #define Task_MAIN_Stack       4096
 #define Task_MAIN_Prio        4
-#define Task_sensor_Stack     4096 * 8
+#define Task_sensor_Stack     4096
 #define Task_sensor_Prio      4
 #define Task_black_box_Stack  4096
 #define Task_black_box_Prio   3
@@ -37,7 +38,7 @@
 #define Task_RGB_LED_Stack    4096
 #define Task_RGB_LED_Prio     3
 #define Task_receiver_Stack   4096
-#define Task_receiver_Prio    3
+#define Task_receiver_Prio    4
 #define Task_Link_Check_Stack 4096
 #define Task_Link_Check_Prio  3
 #define Task_UpMonitor_Stack  4096
@@ -99,9 +100,10 @@ void Task_Wifi_Recv(void *arg);
 
 /*Class*/
 Senser_Classdef Senser;
-DRAM_ATTR myPID_Classdef Roll_pid;
-DRAM_ATTR myPID_Classdef Pitch_pid;
-DRAM_ATTR myPID_Classdef Yaw_pid;
+DRAM_ATTR Control_Classdef Control;
+// DRAM_ATTR myPID_Classdef Roll_pid;
+// DRAM_ATTR myPID_Classdef Pitch_pid;
+// DRAM_ATTR myPID_Classdef Yaw_pid;
 Receiver_Classdef Receiver;
 DSHOT_Classdef DSHOT;
 Servo_Classdef Servo;
@@ -203,21 +205,50 @@ uint8_t app_main(void)
  */
 void Task_MAIN(void *arg)
 {
-  myPID_Class_init(&Roll_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
-  myPID_Class_init(&Pitch_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
-  myPID_Class_init(&Yaw_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  Control_PID_param* PID_param = (Control_PID_param*)malloc(84);
+  PID_param->Roll.Kp = 1.0;
+  PID_param->Roll.Ki = 0.0;
+  PID_param->Roll.Kd = 0.0;
+  PID_param->Roll.P_Limit = 1000.0;
+  PID_param->Roll.I_Limit = 2000.0;
+  PID_param->Roll.D_Limit = 100.0;
+  PID_param->Roll.OUT_Limit = 30000.0;
+
+  PID_param->Pitch.Kp = 1.0;
+  PID_param->Pitch.Ki = 0.0;
+  PID_param->Pitch.Kd = 0.0;
+  PID_param->Pitch.P_Limit = 1000.0;
+  PID_param->Pitch.I_Limit = 2000.0;
+  PID_param->Pitch.D_Limit = 100.0;
+  PID_param->Pitch.OUT_Limit = 30000.0;
+
+  PID_param->Yaw.Kp = 1.0;
+  PID_param->Yaw.Ki = 0.0;
+  PID_param->Yaw.Kd = 0.0;
+  PID_param->Yaw.P_Limit = 1000.0;
+  PID_param->Yaw.I_Limit = 2000.0;
+  PID_param->Yaw.D_Limit = 100.0;
+  PID_param->Yaw.OUT_Limit = 30000.0;
+
+  Control_Class_init(&Control, *PID_param);
+  free(PID_param);
+  // myPID_Class_init(&Roll_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  // myPID_Class_init(&Pitch_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  // myPID_Class_init(&Yaw_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
   control_timer_create();
   vTaskDelay(1000);
   control_intr_enable_and_start();
   for(;;)
   {
     xSemaphoreTake(Pid_Contrl,portMAX_DELAY);
-    Roll_pid.update(&Roll_pid, roll_target, Roll);
-    Pitch_pid.update(&Pitch_pid, pitch_target, Pitch);
-    Yaw_pid.update(&Yaw_pid, yaw_target, Yaw);
-    Roll_pid.cal(&Roll_pid);
-    Pitch_pid.cal(&Pitch_pid);
-    Yaw_pid.cal(&Yaw_pid);
+    Control.update(&Control, Receiver.main_data.ch2, roll_target, Roll, pitch_target, Pitch, yaw_target, Yaw);
+    Control.cal(&Control);
+    // Roll_pid.update(&Roll_pid, roll_target, Roll);
+    // Pitch_pid.update(&Pitch_pid, pitch_target, Pitch);
+    // Yaw_pid.update(&Yaw_pid, yaw_target, Yaw);
+    // Roll_pid.cal(&Roll_pid);
+    // Pitch_pid.cal(&Pitch_pid);
+    // Yaw_pid.cal(&Yaw_pid);
     xSemaphoreGive(Motor_Adjust);
   }
 }
@@ -229,6 +260,7 @@ void Task_MAIN(void *arg)
  */
 void Task_sensor(void *arg)
 {
+  static uint8_t BMP_COUNT = 0;
   Senser_Class_init(&Senser);
   imu_timer_create();
   vTaskDelay(10000);
@@ -253,6 +285,16 @@ void Task_sensor(void *arg)
     Yaw = Senser.Kalman.Yaw;
     ARoll = Senser.Kalman.ARoll;
     APitch = Senser.Kalman.APitch;
+
+    if(BMP_COUNT <= 200)
+    {
+      Senser.BMP388.ask_and_read(&Senser.BMP388);
+      BMP_COUNT++;
+    }
+    else
+    {
+      BMP_COUNT = 0;
+    }
     
     imu_timer_restart();
     // ICM_42688P_read_FIFO();
@@ -328,7 +370,7 @@ void Task_bat_adc(void *arg)
  */
 void Task_motor(void *arg)
 {
-  static uint16_t M1_throttle = 0;
+  // static uint16_t M1_throttle = 0;
 
   DSHOT_Class_init(&DSHOT);
   Servo_Class_init(&Servo);
@@ -347,10 +389,14 @@ void Task_motor(void *arg)
   {
     xSemaphoreTake(Motor_Adjust, portMAX_DELAY);
     // ESP_LOGI("MOTOR", "%d:", M1_throttle);
-    for(uint8_t i=1;i<5;i++)
-    {
-      DSHOT.Set_Throttle(&DSHOT, i, M1_throttle);
-    }
+    // ESP_LOGI("MOTOR", "%f:", Receiver.main_data.ch2 *2000);
+    // M1_throttle = Receiver.main_data.ch2;
+    // for(uint8_t i=1;i<5;i++)
+    // {
+    //   DSHOT.Set_Throttle(&DSHOT, i, M1_throttle);
+    // }
+    DSHOT.Set_All_Throttle(&DSHOT, Control.power_out.throttle_A, Control.power_out.throttle_B, Control.power_out.throttle_C, Control.power_out.throttle_D);
+    // ESP_LOGI("MOTOR", "%d:", Control.power_out.throttle_A);
     // vTaskDelay(100);
   }
 }
@@ -414,14 +460,20 @@ void Task_Link_Check(void *arg)
     if(Receiver.LinkNum > 0)
     {
       if(Receiver.LinkState != true)
+      {
         Indicator.Send_Message(&Indicator, 0, 0, 255, Breath, 255);
+        ESP_LOGI("REC", "Link Connected" );
+      }
       Receiver.LinkState = true;
       Receiver.LinkNum--;
     }
     else
     {
       if(Receiver.LinkState != false)
+      {
         Indicator.Send_Message(&Indicator, 255, 0, 0, Breath, 60);
+        ESP_LOGI("REC", "Link Disconnected");
+      }
       Receiver.LinkState = false;
       // ESP_LOGW("LINK STATE","FALSE");
     }
@@ -453,36 +505,28 @@ void Task_UpMonitor(void *arg)
   Line.out[WIFI_LINE_NUM * 4 + 3] = 0x7F;
   for(;;)
   {
-    // Line.data[0] = Gz_Kalman.X[0];
-    // Line.data[0] = ICM_temp;
-    // // Line.data[1] = Gy;
-    // Line.data[1] = Yaw_angle;
-    // Line.data[2] = ICM_Gz;
-    // Line.data[3] = Gz_Kalman.X[1];
-    // Line.data[4] = Yaw_Kalman_angle;
+    // Line.data[0] = Gx;
+    // Line.data[1] = Roll;
+    // Line.data[2] = Senser.Kalman.Gx;
+    // Line.data[3] = Gy;
+    // Line.data[4] = Pitch;
+    // Line.data[5] = Senser.Kalman.Gy;
+    // Line.data[6] = Gz;
+    // Line.data[7] = Yaw;
+    // Line.data[8] = Senser.Kalman.Gz;
+    // Line.data[9] = ARoll;
+    // Line.data[10] = APitch;
 
-    // Line.data[0] = Gz_Kalman_BMI.X[0];
-    // Line.data[1] = Gz_Kalman.X[0];
-    // Line.data[2] = Gz_Kalman.X[1];
-    // Line.data[3] = BMI_Gz;
-    // Line.data[4] = Gz_Kalman_BMI.X[1];
-
-    // Line.data[0] = (Receiver.main_data.ch2 * 1024 + 1024);
-    // // Line.data[0] = Receiver.main_data.ch0 * 1000.0f;
-    // Line.data[1] = Receiver.main_data.ch1 * 1000.0f;
-    // Line.data[2] = Receiver.main_data.ch2 * 1000.0f;
-    // Line.data[3] = Receiver.main_data.ch3 * 1000.0f;
-
-    Line.data[0] = Gx;
-    Line.data[1] = Roll;
-    Line.data[2] = Senser.Kalman.Gx;
-    Line.data[3] = Gy;
-    Line.data[4] = Pitch;
-    Line.data[5] = Senser.Kalman.Gy;
-    Line.data[6] = Gz;
-    Line.data[7] = Yaw;
-    Line.data[8] = Senser.Kalman.Gz;
-    Line.data[9] = ARoll;
+    Line.data[0] = Roll;
+    Line.data[1] = Pitch;
+    Line.data[2] = Yaw;
+    Line.data[3] = Control.power_out.throttle_A;
+    Line.data[4] = Control.power_out.throttle_B;
+    Line.data[5] = Control.power_out.throttle_C;
+    Line.data[6] = Control.power_out.throttle_D;
+    Line.data[7] = Control.Normal_Data.Roll;
+    Line.data[8] = Control.Normal_Data.Pitch;
+    Line.data[9] = Control.Normal_Data.Yaw;
     Line.data[10] = APitch;
 
     myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);

@@ -3,6 +3,10 @@
 
 #include "bsp_spi.h"
 
+#ifndef PACKED
+#define PACKED __attribute__((packed))
+#endif
+
 #define SENSOR_HOST         SPI_HOST
 #define SENSOR_SPI_MODE     0
 /*ICM-42688p Register Map*/
@@ -225,6 +229,55 @@
 #define CHIP_ID               0x00
 
 /*BMP388 Register Map*/
+#define CMD                   0x7E
+#define NVM_PAR_P11           0x45
+#define NVM_PAR_P10           0x44
+#define NVM_PAR_P9_HIGH       0x43
+#define NVM_PAR_P9_LOW        0x42
+#define NVM_PAR_P8            0x41
+#define NVM_PAR_P7            0x40
+#define NVM_PAR_P6_HIGH       0x3F
+#define NVM_PAR_P6_LOW        0x3E
+#define NVM_PAR_P5_HIGH       0x3D
+#define NVM_PAR_P5_LOW        0x3C
+#define NVM_PAR_P4            0x3B
+#define NVM_PAR_P3            0x3A
+#define NVM_PAR_P2_HIGH       0x39
+#define NVM_PAR_P2_LOW        0x38
+#define NVM_PAR_P1_HIGH       0x37
+#define NVM_PAR_P1_LOW        0x36
+#define NVM_PAR_T3            0x35
+#define NVM_PAR_T2_HIGH       0x34
+#define NVM_PAR_T2_LOW        0x33
+#define NVM_PAR_T1_HIGH       0x32
+#define NVM_PAR_T1_LOW        0x31
+#define CONFIG                0x1F
+#define ODR                   0x1D
+#define OSR                   0x1C
+#define PWR_CTRL_BMP          0x1B  //redefine
+#define IF_CONF_BMP           0x1A  //redefine
+#define INT_CTRL              0x19
+#define FIFO_CONFIG_2         0x18
+#define FIFO_CONFIG_1         0x17
+#define FIFO_WTM_1_BMP        0x16  //redefine
+#define FIFO_WTM_0_BMP        0x15  //redefine
+#define FIFO_DATA             0x14
+#define FIFO_LENGTH_1_BMP     0x13  //redefine
+#define FIFO_LENGTH_0_BMP     0x12  //redefine
+#define INT_STATUS_BMP        0x11  //redefine
+#define EVENT_BMP             0x10  //redefine
+#define SENSORTIME_2_BMP      0x0E  //redefine
+#define SENSORTIME_1_BMP      0x0D  //redefine
+#define SENSORTIME_0_BMP      0x0C  //redefine
+#define DATA_5                0x09
+#define DATA_4                0x08
+#define DATA_3                0x07
+#define DATA_2                0x06
+#define DATA_1                0x05
+#define DATA_0                0x04
+#define STATUS                0x03
+#define ERR_REG               0x02
+#define CHIP_ID               0x00
 
 #define CS_42688P     10
 #define CS_BMI270     48
@@ -274,7 +327,41 @@ typedef struct{
   uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
   uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
 
+  struct Trim
+  {
+    float T1;
+    float T2;
+    float T3;
+    float P1;
+    float P2;
+    float P3;
+    float P4;
+    float P5;
+    float P6;
+    float P7;
+    float P8;
+    float P9;
+    float P10;
+    float P11;
+  }Trim_Data;
+
+  struct unCompensate_Data
+  {
+    float Pressure;
+    float Temperature;
+  }uncomp_data;
+
+  struct Compensated_Data
+  {
+    float Pressure;
+    float Temperature;
+  }comp_data;
+
+  float Height;
+
   void (*init)(void* BMP);
+  void (*ask_and_read)(void *BMP);
+  void (*read_data)(void* BMP);
 }BMP388_Classdef;
 
 /*IMU Kalman Class*/
@@ -349,63 +436,5 @@ void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
                                                         float R_2_2,float R_2_3,float R_3_2,float R_3_3,
                                                         float R_4_4,float R_4_5,float R_5_4,float R_5_5);
 
-/*
-void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman);
-void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw);
-
-void sensor_init(Senser_Classdef *Senser_Class);
-void ICM_42688P_init(ICM42688P_Classdef* ICM);
-float ICM_42688P_read_Temp(ICM42688P_Classdef* ICM);
-uint16_t ICM_42688P_read_Temp_u16(ICM42688P_Classdef* ICM);
-void ICM_42688P_read_ACC(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az);
-void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *Gz);
-void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz);
-void ICM_42688P_read_FIFO(ICM42688P_Classdef* ICM);
-void ICM_42688P_Get_Bais(ICM42688P_Classdef* ICM);
-void BMI270_init(void);
-float BMI270_read_Temp(void);
-void BMI270_read_GYRO(float *Gx,float *Gy,float *Gz);
-void BMI270_read_ACC_GYRO(float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
-void BMI270_Get_Bais(float* Gx_B,float* Gy_B,float* Gz_B);
-void BMP388_init(void);
-
-void imu_kalman_init(imu_Kalman *Kalman,float t,
-                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
-                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
-                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
-
-                                        float R_0,float R_1,float R_2);
-
-void imu_kalman_cal(imu_Kalman *Kalman, float A_0_0,float A_0_1,float A_1_0,float A_1_1,
-                                        float A_2_2,float A_2_3,float A_3_2,float A_3_3,
-                                        float A_4_4,float A_4_5,float A_5_4,float A_5_5,
-
-                                        float B_0_0,float B_1_0,
-                                        float B_2_1,float B_3_1,
-                                        float B_4_2,float B_5_2,
-
-                                        float U_1,float U_2,float U_3,
-                                        float Z_1,float Z_2,float Z_3);
-
-void imu_kalman_cal_d(imu_Kalman *Kalman, float t,
-                                          float U_roll,float U_pitch,float U_yaw,
-                                          float Z_droll,float Z_dpitch,float Z_dyaw);
-
-void imu_kalman_d2_init(imu_Kalman *Kalman,float t,
-                                        float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
-                                        float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
-                                        float Q_4_4,float Q_4_5,float Q_5_4,float Q_5_5,
-
-                                        float R_0_0,float R_0_1,float R_1_0,float R_1_1,
-                                        float R_2_2,float R_2_3,float R_3_2,float R_3_3,
-                                        float R_4_4,float R_4_5,float R_5_4,float R_5_5);
-
-void imu_kalman_cal_d2(imu_Kalman *Kalman, float t,
-                                          float U_roll,float U_pitch,float U_yaw,
-                                          float Z_droll,float Z_dpitch,float Z_dyaw,
-                                          float Z_roll,float Z_pitch,float Z_yaw);
-
-void ICM_Get_R_Matrix(ICM42688P_Classdef* IMU, float *X, float *Y, float *Z);
-*/
 
 #endif

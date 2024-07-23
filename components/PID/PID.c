@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "esp_attr.h"
 #include "PID.h"
 
 void myPID_init(myPID_Classdef* myPID);
@@ -140,7 +141,7 @@ void myPID_init(myPID_Classdef* myPID)
 
 }
 
-void myPID_param_switch(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit)
+void IRAM_ATTR myPID_param_switch(myPID_Classdef* myPID, float Kp, float Ki, float Kd, float P_Limit, float I_Limit, float D_Limit)
 {
   myPID->param.Kp = Kp;
   myPID->param.Ki = Ki;
@@ -154,13 +155,13 @@ void myPID_param_switch(myPID_Classdef* myPID, float Kp, float Ki, float Kd, flo
   // myPID->data.Target = myPID->data.Current = myPID->data.Error = myPID->data.Last_Error = 0.0f;
 }
 
-void myPID_update(myPID_Classdef *myPID, float Target, float Current)
+void IRAM_ATTR myPID_update(myPID_Classdef *myPID, float Target, float Current)
 {
   myPID->data.Current = Current;
   myPID->data.Target = Target;
 }
 
-void myPID_cal(myPID_Classdef* myPID)
+void IRAM_ATTR myPID_cal(myPID_Classdef* myPID)
 {
   //Parallel PID
   myPID->data.Error = myPID->data.Target - myPID->data.Current;

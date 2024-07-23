@@ -33,6 +33,11 @@ void BMI270_read_GYRO(BMI270_Classdef* BMI, float *Gx,float *Gy,float *Gz);
 void BMI270_read_ACC_GYRO(BMI270_Classdef* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
 void BMI270_Get_Bais(BMI270_Classdef* BMI, float* Gx_B,float* Gy_B,float* Gz_B);
 void BMP388_init(BMP388_Classdef* BMP);
+void BMP388_ask_and_read_data(BMP388_Classdef* BMP);
+void BMP388_read_data(BMP388_Classdef* BMP);
+void BMP388_Compensate_Temperature(BMP388_Classdef* BMP);
+void BMP388_Compensate_Pressure(BMP388_Classdef* BMP);
+void BMP388_Cal_Height(BMP388_Classdef* BMP);
 void imu_kalman_init(imu_Kalman *Kalman,float t,
                                         float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
                                         float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
@@ -78,7 +83,7 @@ static const char* TAG = "sensor:";
 //spi device handle
 // spi_device_handle_t icm_42688p;
 // spi_device_handle_t bmi_270;
-spi_device_handle_t bmp_388;
+// spi_device_handle_t bmp_388;
 
 // imu_Kalman ICM_Kalman = {0};
 
@@ -940,12 +945,16 @@ void BMI270_init(BMI270_Classdef* BMI)
   BMI->Tx_Data_Buff[1] = 0x00;
   spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,2 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
   memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+
   //load config file and save as array
-  uint8_t init_array[8193];
+  // uint8_t init_array[8193];
+  // memcpy(init_array + 1,bmi270_config_file,8192);
+  uint8_t *init_array = (uint8_t *)malloc(8193);
   memcpy(init_array + 1,bmi270_config_file,8192);
-  // memcpy(init_array,bmi270_config_file,8193);
   init_array[0] = INIT_DATA | ADDR_WRITE;
   spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,8193 * 8,init_array,NULL);
+  free(init_array);
+
   //complete config load INIT_CTRL
   BMI->Tx_Data_Buff[0] = INIT_CTRL | ADDR_WRITE;
   BMI->Tx_Data_Buff[1] = 0x01;
@@ -1052,15 +1061,153 @@ void BMP388_init(BMP388_Classdef* BMP)
   gpio_set_direction(CS_BMP388, GPIO_MODE_OUTPUT);
   gpio_set_level(CS_BMP388, 1);
 
-  spi_reg_device_to_bus(SPI_HOST,6,&bmp_388,BMP388_SPEED_HZ,SENSOR_SPI_MODE);
+  spi_reg_device_to_bus(SPI_HOST,6,&BMP->bmp_388,BMP388_SPEED_HZ,SENSOR_SPI_MODE);
   BMP->Tx_Data_Buff[0] = CHIP_ID | ADDR_READ;
   // BMP->Tx_Data_Buff[1] = 0x00;
-  spi_connect_start(SENSOR_HOST,CS_BMP388,&bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
   memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
   if(BMP->Rx_Data_Buff[2] == 0x50)
     ESP_LOGI(TAG,"BMP-388 connected");
   else
     ESP_LOGW(TAG,"BMP-388 unconnect......");
+  
+  BMP->Tx_Data_Buff[0] = ERR_REG | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if(BMP->Rx_Data_Buff[2] != 0x00)
+    ESP_LOGW(TAG,"BMP-388 self error");
+  else
+    ESP_LOGI(TAG,"BMP-388 self test pass");
+  
+  uint8_t *trim_array = (uint8_t *)malloc(30);
+  bzero(trim_array, 30);
+  trim_array[0] = NVM_PAR_T1_LOW | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,23 * 8,trim_array,trim_array);
+  BMP->Trim_Data.T1 = (float)(((uint16_t)trim_array[3] << 8) + (uint16_t)trim_array[2]) * 256.0 ;
+  BMP->Trim_Data.T2 = (float)(((uint16_t)trim_array[5] << 8) + (uint16_t)trim_array[4]) / 1073741824.0;
+  BMP->Trim_Data.T3 = (float)((int8_t)trim_array[6]) / 281474976710656.0;
+  BMP->Trim_Data.P1 = ( (float)(int16_t)(((uint16_t)trim_array[8] << 8) + (uint16_t)trim_array[7]) - 16384.0 ) / 1048576.0;
+  BMP->Trim_Data.P2 = ( (float)(int16_t)(((uint16_t)trim_array[10] << 8) + (uint16_t)trim_array[9]) - 16384.0 ) / 536870912.0;
+  BMP->Trim_Data.P3 = (float)((int8_t)trim_array[11]) / 4294967296.0;
+  BMP->Trim_Data.P4 = (float)((int8_t)trim_array[12]) / 137438953472.0;
+  BMP->Trim_Data.P5 = (float)(((uint16_t)trim_array[14] << 8) + (uint16_t)trim_array[13]) * 8.0;
+  BMP->Trim_Data.P6 = (float)(((uint16_t)trim_array[16] << 8) + (uint16_t)trim_array[15]) / 64.0;
+  BMP->Trim_Data.P7 = (float)((int8_t)trim_array[17]) / 256.0;
+  BMP->Trim_Data.P8 = (float)((int8_t)trim_array[18]) / 32768.0;
+  BMP->Trim_Data.P9 = (float)(int16_t)(((uint16_t)trim_array[20] << 8) + (uint16_t)trim_array[19]) / 281474976710656.0;
+  BMP->Trim_Data.P10 = (float)((int8_t)trim_array[21]) / 281474976710656.0;
+  BMP->Trim_Data.P11 = (float)((int8_t)trim_array[22]) / 36893488147419103232.0;
+  free(trim_array);
+
+  BMP->Tx_Data_Buff[0] = CMD | ADDR_WRITE;
+  BMP->Tx_Data_Buff[1] = 0xB6;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,2 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  vTaskDelay(200);
+
+  BMP->Tx_Data_Buff[0] = STATUS | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if( (BMP->Rx_Data_Buff[2] & 0x10) == 0x10 )
+  {
+    ESP_LOGI(TAG,"BMP-388 reset success");
+  }
+  else
+  {
+    ESP_LOGW(TAG,"BMP-388 reset fail");
+  }
+
+  BMP->Tx_Data_Buff[0] = OSR | ADDR_WRITE;
+  BMP->Tx_Data_Buff[1] = 0x03;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,2 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+
+  BMP->Tx_Data_Buff[0] = ODR | ADDR_WRITE;
+  BMP->Tx_Data_Buff[1] = 0x02;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,2 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+
+  BMP->Tx_Data_Buff[0] = CONFIG | ADDR_WRITE;
+  BMP->Tx_Data_Buff[1] = 0x02;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,2 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  
+  BMP->Tx_Data_Buff[0] = PWR_CTRL_BMP | ADDR_WRITE;
+  BMP->Tx_Data_Buff[1] = 0x33;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,2 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+}
+
+void BMP388_ask_and_read_data(BMP388_Classdef* BMP)
+{
+  BMP->Tx_Data_Buff[0] = STATUS | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,3 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+  if( (BMP->Rx_Data_Buff[2] & 0x60) == 0x60 )
+  {
+    // ESP_LOGI(TAG,"BMP-388 data Ready");
+    BMP388_read_data(BMP);
+    BMP388_Compensate_Temperature(BMP);
+    BMP388_Compensate_Pressure(BMP);
+    BMP388_Cal_Height(BMP);
+  }
+  else
+  {
+    // ESP_LOGW(TAG,"BMP-388 data unReady");
+  }
+
+}
+
+void BMP388_read_data(BMP388_Classdef* BMP)
+{
+  BMP->Tx_Data_Buff[0] = DATA_0 | ADDR_READ;
+  spi_connect_start(SENSOR_HOST,CS_BMP388,&BMP->bmp_388,8 * 8,BMP->Tx_Data_Buff,BMP->Rx_Data_Buff);
+  memset(BMP->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
+
+  BMP->uncomp_data.Pressure = (float)( (uint32_t)BMP->Rx_Data_Buff[2] + ((uint32_t)BMP->Rx_Data_Buff[3] << 8) + ((uint32_t)BMP->Rx_Data_Buff[4] << 16) );
+  BMP->uncomp_data.Temperature = (float)( (uint32_t)BMP->Rx_Data_Buff[5] + ((uint32_t)BMP->Rx_Data_Buff[6] << 8) + ((uint32_t)BMP->Rx_Data_Buff[7] << 16) );
+}
+
+void BMP388_Compensate_Temperature(BMP388_Classdef* BMP)
+{
+  float data1;
+  float data2;
+
+  data1 = BMP->uncomp_data.Temperature - BMP->Trim_Data.T1;
+  data2 = data1 * BMP->Trim_Data.T2;
+  BMP->comp_data.Temperature = data2 + (data1 * data1) * BMP->Trim_Data.T3;
+}
+
+void BMP388_Compensate_Pressure(BMP388_Classdef* BMP)
+{
+  float data1;
+  float data2;
+  float data3;
+  float data4;
+  float out1;
+  float out2;
+
+  data1 = BMP->Trim_Data.P6 * BMP->comp_data.Temperature;
+  data2 = BMP->Trim_Data.P7 * (BMP->comp_data.Temperature * BMP->comp_data.Temperature);
+  data3 = BMP->Trim_Data.P8 * (BMP->comp_data.Temperature * BMP->comp_data.Temperature * BMP->comp_data.Temperature);
+  out1 = BMP->Trim_Data.P5 + data1 + data2 + data3;
+
+  data1 = BMP->Trim_Data.P2 * BMP->comp_data.Temperature;
+  data2 = BMP->Trim_Data.P3 * (BMP->comp_data.Temperature * BMP->comp_data.Temperature);
+  data3 = BMP->Trim_Data.P4 * (BMP->comp_data.Temperature * BMP->comp_data.Temperature * BMP->comp_data.Temperature);
+  out2 = BMP->uncomp_data.Pressure * (BMP->Trim_Data.P1 + data1 + data2 + data3);
+
+  data1 = BMP->uncomp_data.Pressure * BMP->uncomp_data.Pressure;
+  data2 = BMP->Trim_Data.P9 + BMP->Trim_Data.P10 * BMP->comp_data.Temperature;
+  data3 = data1 * data2;
+  data4 = data3 + BMP->Trim_Data.P11 * (BMP->comp_data.Pressure * BMP->comp_data.Pressure * BMP->comp_data.Pressure);
+  BMP->comp_data.Pressure = out1 + out2 + data4;
+}
+
+void BMP388_Cal_Height(BMP388_Classdef* BMP)
+{
+  // BMP->Height = ( powf( ( 101300.0 / BMP->comp_data.Pressure ), ( 1.0 / 5.257 ) ) - 1 ) * ( BMP->comp_data.Temperature + 273.15 ) / 0.0065;
+  BMP->Height = 44330 * ( 1 - powf( ( BMP->comp_data.Pressure / 101352.0 ), ( 1.0 / 5.255 ) ) );
 }
 
 void imu_10_data_1_out_to_uart(float Ax, float Ay, float Az, float Gx, float Gy, float Gz, uint32_t index, float Out[10][6])
@@ -1646,6 +1793,8 @@ void BMP388_Class_init(BMP388_Classdef *BMP_Class)
   bzero(BMP_Class->Tx_Data_Buff, TX_BUFF_MAX_LEN);
 
   BMP_Class->init = (void (*)(void*))BMP388_init;
+  BMP_Class->ask_and_read = (void (*)(void*))BMP388_ask_and_read_data;
+  BMP_Class->read_data = (void (*)(void*))BMP388_read_data;
 
   BMP_Class->init(BMP_Class);
 }
