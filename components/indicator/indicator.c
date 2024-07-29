@@ -200,7 +200,7 @@ void Indicator_Send_Message(Indicator_Classdef* Indicator, uint8_t R, uint8_t G,
     .Mode = Mode,
     .Bre_Len = Bre_Len,
   };
-  xQueueSend(Indicator->queue, &Message, portMAX_DELAY);
+  xQueueSend(Indicator->queue, &Message, 0);
 }
 
 void Indicator_Adjust(Indicator_Classdef* Indicator)

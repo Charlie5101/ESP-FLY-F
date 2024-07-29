@@ -2,6 +2,7 @@
 #define SENSOR__
 
 #include "bsp_spi.h"
+#include "algorithm.h"
 
 #ifndef PACKED
 #define PACKED __attribute__((packed))
@@ -294,6 +295,16 @@ typedef struct{
   float Gz_offset;
   uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
   uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
+  
+  struct
+  {
+    float Gx;
+    float Gy;
+    float Gz;
+    float Ax;
+    float Ay;
+    float Az;
+  }Row_data;
 
   void (*init)(void* ICM);
   float (*read_Temp)(void* ICM);
@@ -314,11 +325,21 @@ typedef struct{
   uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
   uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
 
+  struct
+  {
+    float Gx;
+    float Gy;
+    float Gz;
+    float Ax;
+    float Ay;
+    float Az;
+  }Row_data;
+
   void (*init)(void* BMI);
   float (*read_Temp)(void* BMI);
   void (*read_GYRO)(void* BMI, float *Gx, float *Gy, float *Gz);
   void (*read_ACC_GYRO)(void* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz);
-  void (*Get_Bais)(void* BMI, float* Gx_B,float* Gy_B,float* Gz_B);
+  void (*Get_Bais)(void* BMI);
 }BMI270_Classdef;
 
 /*BMP388 Class*/
@@ -395,9 +416,49 @@ typedef struct
   void (*update)(void* Kalman_Class, float t, float U_roll, float U_pitch, float U_yaw);
 }IMU_Kalman_Classdef;
 
+typedef struct
+{
+  struct
+  {
+    volatile float twoKp;
+    volatile float twoKi;
+  }param;
+
+  struct
+  {
+    volatile float integralFBx;
+    volatile float integralFBy;
+    volatile float integralFBz;
+  }temp;
+
+  struct
+  {
+    volatile float q0;
+    volatile float q1;
+    volatile float q2;
+    volatile float q3;
+  }quaternion;
+  
+  struct
+  {
+    float Roll;
+    float Pitch;
+    float Yaw;
+  }Euler;
+
+  void (*init)(void* Mahony_Class);
+  void (*update)(void* Mahony_Class, float gx, float gy, float gz, float ax, float ay, float az, float t);
+  void (*toEuler)(void* Mahony_Class);
+}IMU_Mahony_Classdef;
+
+
 /*Senser Class*/
 typedef struct{
   IMU_Kalman_Classdef Kalman;
+  IMU_Mahony_Classdef Mahony_ICM;
+  IMU_Mahony_Classdef Mahony_BMI;
+
+  ICM42688P_Classdef ICM42688P;
   BMI270_Classdef BMI270;
   BMP388_Classdef BMP388;
 
@@ -409,24 +470,6 @@ void ICM42688P_Class_init(ICM42688P_Classdef *ICM_Class);
 void BMI270_Class_init(BMI270_Classdef *BMI_Class);
 void BMP388_Class_init(BMP388_Classdef *BMP_Class);
 
-//Kalman Filter
-typedef struct imu_Kalman
-{
-  float A[6][6];
-  float B[6][3];
-  float Q[6][6];
-  float R[6][6];
-  float H[6][6];  //3*6
-  float P[6][6];
-  float K[6][6];  //6*3
-
-  float Ut[3][3];
-
-  float X_hat[6][3];
-
-  float Z[6][3];  //3*3
-}imu_Kalman;
-
 void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
                                                         float Q_0_0,float Q_0_1,float Q_1_0,float Q_1_1,
                                                         float Q_2_2,float Q_2_3,float Q_3_2,float Q_3_3,
@@ -436,5 +479,6 @@ void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
                                                         float R_2_2,float R_2_3,float R_3_2,float R_3_3,
                                                         float R_4_4,float R_4_5,float R_5_4,float R_5_5);
 
+void IMU_Mahony_Class_init(IMU_Mahony_Classdef* Mahony, float kp, float ki);
 
 #endif

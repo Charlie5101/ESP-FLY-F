@@ -22,11 +22,11 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
 
   Control->power_param.Throttle_k = 2000;
   Control->power_param.Throttle_b = -170.0;
-  Control->power_param.Roll_k = 10.0;
+  Control->power_param.Roll_k = 300.0;
   Control->power_param.Roll_b = 0.0;
-  Control->power_param.Pitch_k = 10.0;
+  Control->power_param.Pitch_k = 300.0;
   Control->power_param.Pitch_b = 0.0;
-  Control->power_param.Yaw_k = 10.0;
+  Control->power_param.Yaw_k = 300.0;
   Control->power_param.Yaw_b = 0.0;
 
   Control->init = (void (*)(void*))Control_init;
@@ -75,30 +75,58 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   Control->Normal_Data.Pitch = Control->PID.Pitch.OUT / Control->PID.Pitch.param.OUT_Limit;
   Control->Normal_Data.Yaw = Control->PID.Yaw.OUT / Control->PID.Yaw.param.OUT_Limit;
 
-  temp_throttle_A = (2000 * Control->Throttle - 170) + (-Control->Normal_Data.Roll) + ( Control->Normal_Data.Pitch) + (-Control->Normal_Data.Yaw);
-  temp_throttle_B = (2000 * Control->Throttle - 170) + (-Control->Normal_Data.Roll) + (-Control->Normal_Data.Pitch) + ( Control->Normal_Data.Yaw);
-  temp_throttle_C = (2000 * Control->Throttle - 170) + ( Control->Normal_Data.Roll) + ( Control->Normal_Data.Pitch) + ( Control->Normal_Data.Yaw);
-  temp_throttle_D = (2000 * Control->Throttle - 170) + ( Control->Normal_Data.Roll) + (-Control->Normal_Data.Pitch) + (-Control->Normal_Data.Yaw);
+  temp_throttle_A = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
+                    + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+  temp_throttle_B = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
+                    - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+  temp_throttle_C = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
+                    + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+  temp_throttle_D = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
+                    - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
   // temp_throttle_A = Control->Throttle * 2000 - 170;
   // temp_throttle_B = Control->Throttle * 2000 - 170;
   // temp_throttle_C = Control->Throttle * 2000 - 170;
   // temp_throttle_D = Control->Throttle * 2000 - 170;
 
-  if(temp_throttle_A < 0)
+  if(temp_throttle_A <= 0)
   {
     temp_throttle_A = 0;
   }
-  if(temp_throttle_B < 0)
+  else if(temp_throttle_A >= 1999)
+  {
+    temp_throttle_A = 1999;
+  }
+  if(temp_throttle_B <= 0)
   {
     temp_throttle_B = 0;
   }
-  if(temp_throttle_C < 0)
+  else if(temp_throttle_B >= 1999)
+  {
+    temp_throttle_B = 1999;
+  }
+  if(temp_throttle_C <= 0)
   {
     temp_throttle_C = 0;
   }
-  if(temp_throttle_D < 0)
+  else if(temp_throttle_C >= 1999)
+  {
+    temp_throttle_C = 1999;
+  }
+  if(temp_throttle_D <= 0)
   {
     temp_throttle_D = 0;
+  }
+  else if(temp_throttle_D >= 1999)
+  {
+    temp_throttle_D = 1999;
   }
 
   Control->power_out.throttle_A = (uint16_t)temp_throttle_A;

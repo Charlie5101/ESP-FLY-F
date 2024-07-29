@@ -99,11 +99,8 @@ void Task_UpMonitor(void *arg);
 void Task_Wifi_Recv(void *arg);
 
 /*Class*/
-Senser_Classdef Senser;
+DRAM_ATTR Senser_Classdef Senser;
 DRAM_ATTR Control_Classdef Control;
-// DRAM_ATTR myPID_Classdef Roll_pid;
-// DRAM_ATTR myPID_Classdef Pitch_pid;
-// DRAM_ATTR myPID_Classdef Yaw_pid;
 Receiver_Classdef Receiver;
 DSHOT_Classdef DSHOT;
 Servo_Classdef Servo;
@@ -129,6 +126,9 @@ float ICM_Yaw = 0.0;
 float Gx = 0.0;
 float Gy = 0.0;
 float Gz = 0.0;
+float Ax = 0.0;
+float Ay = 0.0;
+float Az = 0.0;
 float Roll = 0.0;
 float Pitch = 0.0;
 float Yaw = 0.0;
@@ -205,7 +205,7 @@ uint8_t app_main(void)
  */
 void Task_MAIN(void *arg)
 {
-  Control_PID_param* PID_param = (Control_PID_param*)malloc(84);
+  Control_PID_param* PID_param = (Control_PID_param*)pvPortMalloc(84);
   PID_param->Roll.Kp = 1.0;
   PID_param->Roll.Ki = 0.0;
   PID_param->Roll.Kd = 0.0;
@@ -231,10 +231,7 @@ void Task_MAIN(void *arg)
   PID_param->Yaw.OUT_Limit = 30000.0;
 
   Control_Class_init(&Control, *PID_param);
-  free(PID_param);
-  // myPID_Class_init(&Roll_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
-  // myPID_Class_init(&Pitch_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
-  // myPID_Class_init(&Yaw_pid, 1.0, 0.0, 0.0, 1000.0, 2000.0, 100.0, 3000.0);
+  vPortFree(PID_param);
   control_timer_create();
   vTaskDelay(1000);
   control_intr_enable_and_start();
@@ -243,12 +240,6 @@ void Task_MAIN(void *arg)
     xSemaphoreTake(Pid_Contrl,portMAX_DELAY);
     Control.update(&Control, Receiver.main_data.ch2, roll_target, Roll, pitch_target, Pitch, yaw_target, Yaw);
     Control.cal(&Control);
-    // Roll_pid.update(&Roll_pid, roll_target, Roll);
-    // Pitch_pid.update(&Pitch_pid, pitch_target, Pitch);
-    // Yaw_pid.update(&Yaw_pid, yaw_target, Yaw);
-    // Roll_pid.cal(&Roll_pid);
-    // Pitch_pid.cal(&Pitch_pid);
-    // Yaw_pid.cal(&Yaw_pid);
     xSemaphoreGive(Motor_Adjust);
   }
 }
@@ -275,16 +266,33 @@ void Task_sensor(void *arg)
     t = 0.001 * (float)(xTaskGetTickCount() - time_k);
     time_k = xTaskGetTickCount();
 
-    Senser.Kalman.update(&Senser.Kalman, t, 0.0f, 0.0f, 0.0f);
+    // Senser.Kalman.update(&Senser.Kalman, t, 0.0f, 0.0f, 0.0f);
 
-    Gx = Senser.Kalman.dRoll;
-    Roll = Senser.Kalman.Roll;
-    Gy = Senser.Kalman.dPitch;
-    Pitch = Senser.Kalman.Pitch;
-    Gz = Senser.Kalman.dYaw;
-    Yaw = Senser.Kalman.Yaw;
-    ARoll = Senser.Kalman.ARoll;
-    APitch = Senser.Kalman.APitch;
+    // Gx = Senser.Kalman.dRoll;
+    // Roll = Senser.Kalman.Roll;
+    // Gy = Senser.Kalman.dPitch;
+    // Pitch = Senser.Kalman.Pitch;
+    // Gz = Senser.Kalman.dYaw;
+    // Yaw = Senser.Kalman.Yaw;
+    // ARoll = Senser.Kalman.ARoll;
+    // APitch = Senser.Kalman.APitch;
+
+    Senser.ICM42688P.read_ACC_GYRO(&Senser.ICM42688P, &Senser.ICM42688P.Row_data.Ax, &Senser.ICM42688P.Row_data.Ay, &Senser.ICM42688P.Row_data.Az,
+                                                      &Senser.ICM42688P.Row_data.Gx, &Senser.ICM42688P.Row_data.Gy, &Senser.ICM42688P.Row_data.Gz);
+    Senser.BMI270.read_ACC_GYRO(&Senser.BMI270, &Senser.BMI270.Row_data.Ax, &Senser.BMI270.Row_data.Ay, &Senser.BMI270.Row_data.Az,
+                                                &Senser.BMI270.Row_data.Gx, &Senser.BMI270.Row_data.Gy, &Senser.BMI270.Row_data.Gz);
+
+    Senser.Mahony_ICM.update(&Senser.Mahony_ICM, Senser.ICM42688P.Row_data.Gx, Senser.ICM42688P.Row_data.Gy, Senser.ICM42688P.Row_data.Gz,
+                                                 Senser.ICM42688P.Row_data.Ax, Senser.ICM42688P.Row_data.Ay, Senser.ICM42688P.Row_data.Az, t);
+    Senser.Mahony_BMI.update(&Senser.Mahony_BMI, Senser.BMI270.Row_data.Gx, Senser.BMI270.Row_data.Gy, Senser.BMI270.Row_data.Gz,
+                                                 Senser.BMI270.Row_data.Ax, Senser.BMI270.Row_data.Ay, Senser.BMI270.Row_data.Az, t);
+
+    Senser.Mahony_ICM.toEuler(&Senser.Mahony_ICM);
+    Senser.Mahony_BMI.toEuler(&Senser.Mahony_BMI);
+
+    Roll = Senser.Mahony_ICM.Euler.Roll / 3.1415926f * 180.0f;
+    Pitch = Senser.Mahony_ICM.Euler.Pitch / 3.1415926f * 180.0f;
+    Yaw = Senser.Mahony_ICM.Euler.Yaw / 3.1415926f * 180.0f;
 
     if(BMP_COUNT <= 200)
     {
@@ -370,15 +378,13 @@ void Task_bat_adc(void *arg)
  */
 void Task_motor(void *arg)
 {
-  // static uint16_t M1_throttle = 0;
-
   DSHOT_Class_init(&DSHOT);
   Servo_Class_init(&Servo);
 
-  Servo.Set_Out(1, 23.0);
-  Servo.Set_Out(2, 35.0);
-  Servo.Set_Out(3, 67.0);
-  Servo.Set_Out(4, 89.0);
+  Servo.Set_Out(1, 0.0);
+  Servo.Set_Out(2, 0.0);
+  Servo.Set_Out(3, 0.0);
+  Servo.Set_Out(4, 0.0);
   for(uint8_t i=1;i<5;i++)
   {
     DSHOT.ESC_unLock(&DSHOT, i);
@@ -390,14 +396,8 @@ void Task_motor(void *arg)
     xSemaphoreTake(Motor_Adjust, portMAX_DELAY);
     // ESP_LOGI("MOTOR", "%d:", M1_throttle);
     // ESP_LOGI("MOTOR", "%f:", Receiver.main_data.ch2 *2000);
-    // M1_throttle = Receiver.main_data.ch2;
-    // for(uint8_t i=1;i<5;i++)
-    // {
-    //   DSHOT.Set_Throttle(&DSHOT, i, M1_throttle);
-    // }
     DSHOT.Set_All_Throttle(&DSHOT, Control.power_out.throttle_A, Control.power_out.throttle_B, Control.power_out.throttle_C, Control.power_out.throttle_D);
     // ESP_LOGI("MOTOR", "%d:", Control.power_out.throttle_A);
-    // vTaskDelay(100);
   }
 }
 
@@ -481,7 +481,7 @@ void Task_Link_Check(void *arg)
   }
 }
 
-#define WIFI_LINE_NUM   11
+#define WIFI_LINE_NUM   12
 /**
  * @brief 
  * 
@@ -517,17 +517,33 @@ void Task_UpMonitor(void *arg)
     // Line.data[9] = ARoll;
     // Line.data[10] = APitch;
 
+    // Line.data[0] = Roll;
+    // Line.data[1] = Pitch;
+    // Line.data[2] = Yaw;
+    // Line.data[3] = Control.power_out.throttle_A;
+    // Line.data[4] = Control.power_out.throttle_B;
+    // Line.data[5] = Control.power_out.throttle_C;
+    // Line.data[6] = Control.power_out.throttle_D;
+    // Line.data[7] = Control.Normal_Data.Roll;
+    // Line.data[8] = Control.Normal_Data.Pitch;
+    // Line.data[9] = Control.Normal_Data.Yaw;
+    // Line.data[10] = Gx;
+    // Line.data[11] = Gy;
+    // Line.data[12] = Gz;
+
     Line.data[0] = Roll;
     Line.data[1] = Pitch;
     Line.data[2] = Yaw;
-    Line.data[3] = Control.power_out.throttle_A;
-    Line.data[4] = Control.power_out.throttle_B;
-    Line.data[5] = Control.power_out.throttle_C;
-    Line.data[6] = Control.power_out.throttle_D;
-    Line.data[7] = Control.Normal_Data.Roll;
-    Line.data[8] = Control.Normal_Data.Pitch;
-    Line.data[9] = Control.Normal_Data.Yaw;
-    Line.data[10] = APitch;
+    Line.data[3] = Senser.ICM42688P.Row_data.Gx;
+    Line.data[4] = Senser.ICM42688P.Row_data.Gy;
+    Line.data[5] = Senser.ICM42688P.Row_data.Gz;
+
+    Line.data[6] = Senser.Mahony_BMI.Euler.Roll / 3.1415926f * 180.0f;
+    Line.data[7] = Senser.Mahony_BMI.Euler.Pitch / 3.1415926f * 180.0f;
+    Line.data[8] = Senser.Mahony_BMI.Euler.Yaw / 3.1415926f * 180.0f;
+    Line.data[9] = Senser.BMI270.Row_data.Gx;
+    Line.data[10] = Senser.BMI270.Row_data.Gz;
+    Line.data[11] = Senser.BMI270.Row_data.Gz;
 
     myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     Socket_Service();
@@ -557,7 +573,6 @@ void Task_Wifi_Recv(void *arg)
       myWifi_vofa_stop();
 
       ESP_LOGI("OTA","Now going to OTA....");
-      // Indicator.Bre_Color_Set(&Indicator, 0, 255, 0, 255);
       Indicator.Send_Message(&Indicator, 255, 0, 255, Breath, 255);
       OTA_update();
     }

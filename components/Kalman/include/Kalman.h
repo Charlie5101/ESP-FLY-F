@@ -3,18 +3,6 @@
 
 #include <math.h>
 
-//low Pass Filter
-typedef struct myLPF
-{
-  float OUT,Last_OUT,Sample,alpha;
-}myLPF;
-
-//high Pass Filter
-typedef struct myHPF
-{
-  float OUT,Last_OUT,Sample,Last_Sample,alpha;
-}myHPF;
-
 //Kalman Filter
 typedef struct myKalman_2
 {
@@ -31,14 +19,6 @@ typedef struct myKalman_2
   float X[2];
 }myKalman_2;
 
-
-// void LPF_init(myLPF *LPF,float alpha);
-void LPF_init(myLPF *LPF,float Ts,float fc);
-float LPF_cal(myLPF *LPF,float Sample);
-// void HPF_init(myHPF *HPF,float alpha);
-void HPF_init(myHPF *HPF,float Ts,float fc);
-float HPF_cal(myHPF *HPF,float Sample);
-
 void Kalman_2_init(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
                                       float B_1,float B_2,
                                       float H_1,float H_2,float H_3,float H_4,
@@ -50,5 +30,23 @@ void Kalman_2_cal(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
                                      float B_1,float B_2,
                                      float Ut,
                                      float Z_1,float Z_2);
+
+//Kalman Filter
+typedef struct imu_Kalman
+{
+  float A[6][6];
+  float B[6][3];
+  float Q[6][6];
+  float R[6][6];
+  float H[6][6];  //3*6
+  float P[6][6];
+  float K[6][6];  //6*3
+
+  float Ut[3][3];
+
+  float X_hat[6][3];
+
+  float Z[6][3];  //3*3
+}imu_Kalman;
 
 #endif
