@@ -17,12 +17,13 @@
 #include "PID.h"
 #include "receiver.h"
 #include "Control.h"
+#include "bat_adc.h"
 
 /*task config*/
 #define Task_MAIN_Stack       4096
-#define Task_MAIN_Prio        4
+#define Task_MAIN_Prio        6
 #define Task_sensor_Stack     4096
-#define Task_sensor_Prio      4
+#define Task_sensor_Prio      6
 #define Task_black_box_Stack  4096
 #define Task_black_box_Prio   3
 #define Task_indicator_Stack  4096
@@ -32,15 +33,17 @@
 #define Task_bat_adc_Stack    4096
 #define Task_bat_adc_Prio     3
 #define Task_motor_Stack      4096
-#define Task_motor_Prio       3
+#define Task_motor_Prio       6
 #define Task_GPS_Stack        4096
 #define Task_GPS_Prio         3
 #define Task_RGB_LED_Stack    4096
 #define Task_RGB_LED_Prio     3
 #define Task_receiver_Stack   4096
-#define Task_receiver_Prio    4
+#define Task_receiver_Prio    6
 #define Task_Link_Check_Stack 4096
-#define Task_Link_Check_Prio  3
+#define Task_Link_Check_Prio  4
+#define Task_receiver_TLM_Stack 4096
+#define Task_receiver_TLM_Prio  4
 #define Task_UpMonitor_Stack  4096
 #define Task_UpMonitor_Prio   1
 #define Task_Wifi_Recv_Stack  4096
@@ -80,6 +83,7 @@ TaskHandle_t GPS_Handle;
 TaskHandle_t RGB_LED_Handle;
 TaskHandle_t Receiver_Handle;
 TaskHandle_t Link_Check_Handle;
+TaskHandle_t Receiver_TLM_Handle;
 TaskHandle_t UpMonitor_Handle;
 TaskHandle_t Wifi_Recv_Handle;
 
@@ -95,6 +99,7 @@ void Task_GPS(void *arg);
 void Task_RGB_LED(void *arg);
 void Task_receiver(void *arg);
 void Task_Link_Check(void *arg);
+void Task_receiver_TLM(void *arg);
 void Task_UpMonitor(void *arg);
 void Task_Wifi_Recv(void *arg);
 
@@ -105,6 +110,7 @@ Receiver_Classdef Receiver;
 DSHOT_Classdef DSHOT;
 Servo_Classdef Servo;
 Indicator_Classdef Indicator;
+BAT_Voltage_Classdef BAT;
 
 /*Var*/
 DRAM_ATTR float pitch_target = 0.0f;
@@ -206,7 +212,7 @@ uint8_t app_main(void)
 void Task_MAIN(void *arg)
 {
   Control_PID_param* PID_param = (Control_PID_param*)pvPortMalloc(84);
-  PID_param->Roll.Kp = 1.0;
+  PID_param->Roll.Kp = 30.0;
   PID_param->Roll.Ki = 0.0;
   PID_param->Roll.Kd = 0.0;
   PID_param->Roll.P_Limit = 1000.0;
@@ -214,7 +220,7 @@ void Task_MAIN(void *arg)
   PID_param->Roll.D_Limit = 100.0;
   PID_param->Roll.OUT_Limit = 30000.0;
 
-  PID_param->Pitch.Kp = 1.0;
+  PID_param->Pitch.Kp = 30.0;
   PID_param->Pitch.Ki = 0.0;
   PID_param->Pitch.Kd = 0.0;
   PID_param->Pitch.P_Limit = 1000.0;
@@ -222,7 +228,7 @@ void Task_MAIN(void *arg)
   PID_param->Pitch.D_Limit = 100.0;
   PID_param->Pitch.OUT_Limit = 30000.0;
 
-  PID_param->Yaw.Kp = 1.0;
+  PID_param->Yaw.Kp = 30.0;
   PID_param->Yaw.Ki = 0.0;
   PID_param->Yaw.Kd = 0.0;
   PID_param->Yaw.P_Limit = 1000.0;
@@ -289,6 +295,15 @@ void Task_sensor(void *arg)
 
     Senser.Mahony_ICM.toEuler(&Senser.Mahony_ICM);
     Senser.Mahony_BMI.toEuler(&Senser.Mahony_BMI);
+    Senser.Kalman.update(&Senser.Kalman,
+                         Senser.Mahony_ICM.quaternion.q0, Senser.Mahony_ICM.quaternion.q1, Senser.Mahony_ICM.quaternion.q2, Senser.Mahony_ICM.quaternion.q3,
+                         Senser.Mahony_BMI.quaternion.q0, Senser.Mahony_BMI.quaternion.q1, Senser.Mahony_BMI.quaternion.q2, Senser.Mahony_BMI.quaternion.q3);
+    Senser.Kalman.toEuler(&Senser.Kalman);
+
+    Senser.Mahony_ICM.quaternion.q0 = Senser.Mahony_BMI.quaternion.q0 = Senser.Kalman.OUT.q0;
+    Senser.Mahony_ICM.quaternion.q1 = Senser.Mahony_BMI.quaternion.q1 = Senser.Kalman.OUT.q1;
+    Senser.Mahony_ICM.quaternion.q2 = Senser.Mahony_BMI.quaternion.q2 = Senser.Kalman.OUT.q2;
+    Senser.Mahony_ICM.quaternion.q3 = Senser.Mahony_BMI.quaternion.q3 = Senser.Kalman.OUT.q3;
 
     Roll = Senser.Mahony_ICM.Euler.Roll / 3.1415926f * 180.0f;
     Pitch = Senser.Mahony_ICM.Euler.Pitch / 3.1415926f * 180.0f;
@@ -365,9 +380,12 @@ void Task_buzzer(void *arg)
  */
 void Task_bat_adc(void *arg)
 {
+  BAT_Voltage_Class_init(&BAT);
+  vTaskDelay(5000);
   for(;;)
   {
-    vTaskDelay(10);
+    BAT.read(&BAT);
+    vTaskDelay(500);
   }
 }
 
@@ -437,6 +455,7 @@ void Task_receiver(void *arg)
   Receiver_Class_init(&Receiver);
   Receiver.crsf.crc8_init(&Receiver);
   xTaskCreatePinnedToCore(Task_Link_Check,  "Receiver Link Check",  Task_Link_Check_Stack, NULL, Task_Link_Check_Prio,  &Link_Check_Handle, 0);
+  xTaskCreatePinnedToCore(Task_receiver_TLM,  "Receiver TLM",  Task_receiver_TLM_Stack, NULL, Task_receiver_Prio,  &Receiver_TLM_Handle, 0);
   for(;;)
   {
     xSemaphoreTake(Uart2_data_rec, portMAX_DELAY);
@@ -478,6 +497,20 @@ void Task_Link_Check(void *arg)
       // ESP_LOGW("LINK STATE","FALSE");
     }
     vTaskDelay(3);
+  }
+}
+
+/**
+ * @brief 
+ * 
+ * @param arg 
+ */
+void Task_receiver_TLM(void *arg)
+{
+  for(;;)
+  {
+    Receiver.crsf.bat_TLM_send(&Receiver, BAT.fvoltage, 0.0f, 1100, (uint8_t)(BAT.fvoltage / 17.4 * 100));
+    vTaskDelay(200);
   }
 }
 
@@ -541,9 +574,12 @@ void Task_UpMonitor(void *arg)
     Line.data[6] = Senser.Mahony_BMI.Euler.Roll / 3.1415926f * 180.0f;
     Line.data[7] = Senser.Mahony_BMI.Euler.Pitch / 3.1415926f * 180.0f;
     Line.data[8] = Senser.Mahony_BMI.Euler.Yaw / 3.1415926f * 180.0f;
-    Line.data[9] = Senser.BMI270.Row_data.Gx;
-    Line.data[10] = Senser.BMI270.Row_data.Gz;
-    Line.data[11] = Senser.BMI270.Row_data.Gz;
+    // Line.data[9] = Senser.BMI270.Row_data.Gx;
+    // Line.data[10] = Senser.BMI270.Row_data.Gz;
+    // Line.data[11] = Senser.BMI270.Row_data.Gz;
+    Line.data[9] = Senser.Kalman.Euler.Roll / 3.1415926f * 180.0f;
+    Line.data[10] = Senser.Kalman.Euler.Pitch / 3.1415926f * 180.0f;
+    Line.data[11] = Senser.Kalman.Euler.Yaw / 3.1415926f * 180.0f;
 
     myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     Socket_Service();

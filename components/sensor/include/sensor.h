@@ -444,6 +444,12 @@ typedef struct
     float Roll;
     float Pitch;
     float Yaw;
+    int32_t Lap_Roll;
+    int32_t Lap_Pitch;
+    int32_t Lap_Yaw;
+    float Total_Roll;
+    float Total_Pitch;
+    float Total_Yaw;
   }Euler;
 
   void (*init)(void* Mahony_Class);
@@ -451,10 +457,60 @@ typedef struct
   void (*toEuler)(void* Mahony_Class);
 }IMU_Mahony_Classdef;
 
+/*IMU Data fusion Class*/
+typedef struct
+{
+  struct
+  {
+    volatile float q0;
+    volatile float q1;
+    volatile float q2;
+    volatile float q3;
+  }OUT;
+
+  struct
+  {
+    volatile float q0;
+    volatile float q1;
+    volatile float q2;
+    volatile float q3;
+  }IN_1;
+
+  struct
+  {
+    volatile float q0;
+    volatile float q1;
+    volatile float q2;
+    volatile float q3;
+  }IN_2;
+
+  volatile float K_1[4][4];
+  volatile float K_2[4][4];
+  volatile float P[4][4];
+  float R_1[4][4];
+  float R_2[4][4];
+  
+  struct
+  {
+    float Roll;
+    float Pitch;
+    float Yaw;
+    int32_t Lap_Roll;
+    int32_t Lap_Pitch;
+    int32_t Lap_Yaw;
+    float Total_Roll;
+    float Total_Pitch;
+    float Total_Yaw;
+  }Euler;
+
+  void (*init)(void* Kalman_Class);
+  void (*update)(void* Kalman_Class, float IN_1_q0, float IN_1_q1, float IN_1_q2, float IN_1_q3, float IN_2_q0, float IN_2_q1, float IN_2_q2, float IN_2_q3);
+  void (*toEuler)(void* Kalman_Class);
+}IMU_Kalman_Data_Fusion_Classdef;
 
 /*Senser Class*/
 typedef struct{
-  IMU_Kalman_Classdef Kalman;
+  IMU_Kalman_Data_Fusion_Classdef Kalman;
   IMU_Mahony_Classdef Mahony_ICM;
   IMU_Mahony_Classdef Mahony_BMI;
 
@@ -480,5 +536,7 @@ void IMU_Kalman_Class_init(IMU_Kalman_Classdef *Kalman, float t,
                                                         float R_4_4,float R_4_5,float R_5_4,float R_5_5);
 
 void IMU_Mahony_Class_init(IMU_Mahony_Classdef* Mahony, float kp, float ki);
+
+void IMU_Kalman_Data_fusion_Class_init(IMU_Kalman_Data_Fusion_Classdef* Kalman);
 
 #endif

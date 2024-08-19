@@ -15,7 +15,9 @@ void Receiver_init(Receiver_Classdef* Receiver);
 void Receiver_rec_data(Receiver_Classdef* Receiver, uint8_t* pdata, uint16_t len);
 void CRSF_crc8_init(Receiver_Classdef* Receiver);
 uint8_t CRSF_crc8_check(Receiver_Classdef* Receiver, uint8_t* pdata);
+uint8_t CRSF_crc8_cal(Receiver_Classdef* Receiver, uint8_t* pdata, uint8_t len);
 void CRSF_decode(Receiver_Classdef* Receiver);
+void CRSF_TLM_bat_voltage(Receiver_Classdef* Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining);
 
 void Receiver_Class_init(Receiver_Classdef* Receiver)
 {
@@ -29,12 +31,18 @@ void Receiver_Class_init(Receiver_Classdef* Receiver)
   Receiver->LinkNum = 0;
   bzero(Receiver->crsf.crc8_table, 256);
   bzero(&Receiver->crsf.LinkInfo, LinkStatisticsFrameLength);
+  Receiver->crsf.Bat_pack.header.device_addr = CRSF_SYNC_BYTE;
+  Receiver->crsf.Bat_pack.header.frame_size = BattSensorFrameLength + 2;
+  Receiver->crsf.Bat_pack.header.type = CRSF_FRAMETYPE_BATTERY_SENSOR;
+  bzero(&Receiver->crsf.Bat_pack.Bat_Info, BattSensorFrameLength);
+  Receiver->crsf.Bat_pack.crc = 0;
 
   Receiver->init = (void (*)(void*))Receiver_init;
   Receiver->rec_data = (void (*)(void*, uint8_t* pdata, uint16_t len))Receiver_rec_data;
   Receiver->crsf.crc8_init = (void (*)(void*))CRSF_crc8_init;
   Receiver->crsf.crc_check = (uint8_t (*)(void*, uint8_t* pdata))CRSF_crc8_check;
   Receiver->crsf.decode = (void (*)(void*))CRSF_decode;
+  Receiver->crsf.bat_TLM_send = (void (*)(void*, float voltage, float current, uint32_t capacity, uint8_t remaining))CRSF_TLM_bat_voltage;
 
   Receiver->init(Receiver);
 }
@@ -88,6 +96,16 @@ uint8_t CRSF_crc8_check(Receiver_Classdef* Receiver, uint8_t* pdata)
   {
     return false;
   }
+}
+
+uint8_t CRSF_crc8_cal(Receiver_Classdef* Receiver, uint8_t* pdata, uint8_t len)
+{
+  uint8_t crc = 0;
+  while(len--)
+  {
+    crc = Receiver->crsf.crc8_table[crc ^ *pdata++];
+  }
+  return crc;
 }
 
 void CRSF_decode(Receiver_Classdef* Receiver)
@@ -182,4 +200,36 @@ void CRSF_decode(Receiver_Classdef* Receiver)
     default:
       break;
   }
+}
+
+void CRSF_TLM_attitude(Receiver_Classdef* Receiver)
+{
+
+}
+
+void CRSF_TLM_bat_voltage(Receiver_Classdef* Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining)
+{
+  Receiver->crsf.Bat_pack.Bat_Info.voltage = ((uint16_t)(voltage * 1 * 10) & 0xFF00) >> 8 | ((uint16_t)(voltage * 1 * 10) & 0x00FF) << 8;
+  Receiver->crsf.Bat_pack.Bat_Info.current = ((uint16_t)(current * 1 * 10) & 0xFF00) >> 8 | ((uint16_t)(current * 1 * 10) & 0x00FF) << 8;
+  Receiver->crsf.Bat_pack.Bat_Info.capacity = ((uint32_t)(capacity) & 0xFF0000) >> 16 |
+                                              ((uint32_t)(capacity) & 0x00FF00) |
+                                              ((uint32_t)(capacity) & 0x0000FF) << 16;
+  Receiver->crsf.Bat_pack.Bat_Info.remaining = remaining;
+  Receiver->crsf.Bat_pack.crc = CRSF_crc8_cal(Receiver, &Receiver->crsf.Bat_pack.header.type, BattSensorFrameLength + 1);
+  uart_send(RECEIVER_UART, (uint8_t*)&Receiver->crsf.Bat_pack, sizeof(Receiver->crsf.Bat_pack));
+}
+
+void CRSF_TLM_fly_mode(Receiver_Classdef* Receiver)
+{
+
+}
+
+void CRSF_TLM_GPS(Receiver_Classdef* Receiver)
+{
+
+}
+
+void CRSF_TLM_vario(Receiver_Classdef* Receiver)
+{
+
 }

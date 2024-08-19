@@ -542,10 +542,17 @@ typedef struct
 		uint8_t inCrc;
 		uint8_t crc8_table[256];
 		crsfLinkStatistics_t LinkInfo;
+		struct
+		{
+			crsf_header_t header;
+			crsf_sensor_battery_t Bat_Info;
+			uint8_t crc;
+		}PACKED Bat_pack;
 
 		void (*crc8_init)(void *Receiver);
 		uint8_t (*crc_check)(void* Receiver, uint8_t* pdata);
 		void (*decode)(void *Receiver);
+		void (*bat_TLM_send)(void *Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining);
 	}crsf;
 
 	uint8_t dtmp[REC_BUFF_LEN];

@@ -48,6 +48,11 @@ void IMU_Mahony_Q_to_Euler(IMU_Mahony_Classdef* Mahony);
 void Quaternion_to_Euler(float q0, float q1, float q2, float q3, float* Roll, float* Pitch, float* Yaw);
 float invSqrt(float x);
 
+void IMU_Kalman_Data_fusion_init(IMU_Kalman_Data_Fusion_Classdef* Kalman);
+void IMU_Kalman_Data_fusion_update(IMU_Kalman_Data_Fusion_Classdef* Kalman, float IN_1_q0, float IN_1_q1, float IN_1_q2, float IN_1_q3,
+                                                                            float IN_2_q0, float IN_2_q1, float IN_2_q2, float IN_2_q3);
+void IMU_Kalman_Q_to_Euler(IMU_Kalman_Data_Fusion_Classdef* Kalman);
+
 static const char* TAG = "sensor:";
 
 const uint8_t bmi270_config_file[] = {
@@ -1242,6 +1247,7 @@ void Senser_Class_init(Senser_Classdef *Senser_Class)
   //                                           // .02,  0.0,  0.0,  0.02,
   //                                           // 2.5,   0.0,  0.0,  2.5,
   //                                           // 0.2,   0.0,  0.0,  0.2
+  IMU_Kalman_Data_fusion_Class_init(&(Senser_Class->Kalman));
   IMU_Mahony_Class_init(&(Senser_Class->Mahony_ICM), 0.5f, 0.0f);
   IMU_Mahony_Class_init(&(Senser_Class->Mahony_BMI), 0.5f, 0.0f);
   ICM42688P_Class_init(&(Senser_Class->ICM42688P));
@@ -1439,12 +1445,12 @@ void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float
   //Get Data
   Kalman->ICM42688P.read_ACC_GYRO(&Kalman->ICM42688P, &Kalman->Ax, &Kalman->Ay, &Kalman->Az, &Kalman->Gx, &Kalman->Gy, &Kalman->Gz);
 
-  Kalman->Z_dRoll = Kalman->Gx - Kalman->ICM42688P.Gx_offset;
-  Kalman->Z_dPitch = Kalman->Gy - Kalman->ICM42688P.Gy_offset;
-  Kalman->Z_dYaw = Kalman->Gz - Kalman->ICM42688P.Gz_offset;
-  Kalman->Z_Roll += (Kalman->Gx - Kalman->ICM42688P.Gx_offset) * t;
-  Kalman->Z_Pitch += (Kalman->Gy - Kalman->ICM42688P.Gy_offset) * t;
-  Kalman->Z_Yaw += (Kalman->Gz - Kalman->ICM42688P.Gz_offset) * t;
+  Kalman->Z_dRoll = Kalman->Gx;
+  Kalman->Z_dPitch = Kalman->Gy;
+  Kalman->Z_dYaw = Kalman->Gz;
+  Kalman->Z_Roll += (Kalman->Gx) * t;
+  Kalman->Z_Pitch += (Kalman->Gy) * t;
+  Kalman->Z_Yaw += (Kalman->Gz) * t;
 
   //加计 低通
   Kalman->ARoll = atanf(Kalman->Ay / Kalman->Az) * ( 180.0 / 3.1415926 );
@@ -1665,6 +1671,15 @@ void IMU_Mahony_Class_init(IMU_Mahony_Classdef* Mahony, float kp, float ki)
   Mahony->temp.integralFBx  = 0.0f;
   Mahony->temp.integralFBy  = 0.0f;
   Mahony->temp.integralFBz  = 0.0f;
+  Mahony->Euler.Roll = 0.0;
+  Mahony->Euler.Pitch = 0.0;
+  Mahony->Euler.Yaw = 0.0;
+  Mahony->Euler.Lap_Roll = 0.0;
+  Mahony->Euler.Lap_Pitch = 0.0;
+  Mahony->Euler.Lap_Yaw = 0.0;
+  Mahony->Euler.Total_Roll = 0.0;
+  Mahony->Euler.Total_Pitch = 0.0;
+  Mahony->Euler.Total_Yaw = 0.0;
 
   Mahony->init = (void (*)(void*))IMU_Mahony_init;
   Mahony->update = (void (*)(void*, float gx, float gy, float gz, float ax, float ay, float az, float t))IMU_Mahony_update;
@@ -1697,6 +1712,20 @@ void IMU_Mahony_update(IMU_Mahony_Classdef* Mahony, float gx, float gy, float gz
 		ax *= recipNorm;
 		ay *= recipNorm;
 		az *= recipNorm;
+
+    //Compute acceleration level and Kp,Ki
+    if(fabsf(recipNorm - 1) < 0.015)
+    {
+      
+    }
+    else if(fabsf(recipNorm - 1) >= 0.015 && fabsf(recipNorm - 1) < 5.0)
+    {
+
+    }
+    else
+    {
+
+    }
 
 		// Estimated direction of gravity and vector perpendicular to magnetic flux
 		halfvx = Mahony->quaternion.q1 * Mahony->quaternion.q3 - Mahony->quaternion.q0 * Mahony->quaternion.q2;
@@ -1754,8 +1783,46 @@ void IMU_Mahony_update(IMU_Mahony_Classdef* Mahony, float gx, float gy, float gz
 
 void IMU_Mahony_Q_to_Euler(IMU_Mahony_Classdef* Mahony)
 {
+  float Last_Roll = Mahony->Euler.Roll;
+  float Last_Pitch = Mahony->Euler.Pitch;
+  float Last_Yaw = Mahony->Euler.Yaw;
   Quaternion_to_Euler(Mahony->quaternion.q0, Mahony->quaternion.q1, Mahony->quaternion.q2, Mahony->quaternion.q3,
                       &Mahony->Euler.Roll, &Mahony->Euler.Pitch, &Mahony->Euler.Yaw);
+
+  float delta_roll = Mahony->Euler.Roll - Last_Roll;
+  float delta_pitch = Mahony->Euler.Pitch - Last_Pitch;
+  float delta_yaw = Mahony->Euler.Yaw - Last_Yaw;
+  if(delta_roll > -1.5707963f)
+  {
+    delta_roll += 3.1415926f;
+  }
+  else if(delta_roll > 1.5707963f)
+  {
+    delta_roll -= 3.1415926f;
+  }
+  if(delta_pitch > -1.5707963f)
+  {
+    delta_pitch += 3.1415926f;
+  }
+  else if(delta_pitch > 1.5707963f)
+  {
+    delta_pitch -= 3.1415926f;
+  }
+  if(delta_yaw > -1.5707963f)
+  {
+    delta_yaw += 3.1415926f;
+  }
+  else if(delta_yaw > 1.5707963f)
+  {
+    delta_yaw -= 3.1415926f;
+  }
+  Mahony->Euler.Total_Roll += delta_roll;
+  Mahony->Euler.Total_Pitch += delta_pitch;
+  Mahony->Euler.Total_Yaw += delta_yaw;
+
+  Mahony->Euler.Lap_Roll = (int32_t)(Mahony->Euler.Total_Roll / 3.1415926f);
+  Mahony->Euler.Lap_Pitch = (int32_t)(Mahony->Euler.Total_Pitch / 3.1415926f);
+  Mahony->Euler.Lap_Yaw = (int32_t)(Mahony->Euler.Total_Yaw / 3.1415926f);
 }
 
 void Quaternion_to_Euler(float q0, float q1, float q2, float q3, float* Roll, float* Pitch, float* Yaw)
@@ -1779,3 +1846,142 @@ float invSqrt(float x) {
 	return y;
 }
 
+void IMU_Kalman_Data_fusion_Class_init(IMU_Kalman_Data_Fusion_Classdef* Kalman)
+{
+  Kalman->OUT.q0 = 1.0;
+  Kalman->OUT.q1 = 0.0;
+  Kalman->OUT.q2 = 0.0;
+  Kalman->OUT.q3 = 0.0;
+  Kalman->IN_1.q0 = 1.0;
+  Kalman->IN_1.q1 = 0.0;
+  Kalman->IN_1.q2 = 0.0;
+  Kalman->IN_1.q3 = 0.0;
+  Kalman->IN_2.q0 = 1.0;
+  Kalman->IN_2.q1 = 0.0;
+  Kalman->IN_2.q2 = 0.0;
+  Kalman->IN_2.q3 = 0.0;
+  memset(Kalman->K_1, 0, 4 * 4 * 4);
+  memset(Kalman->K_2, 0, 4 * 4 * 4);
+  memset(Kalman->P, 0, 4 * 4 * 4);
+  memset(Kalman->R_1, 0, 4 * 4 * 4);
+  memset(Kalman->R_2, 0, 4 * 4 * 4);
+  Kalman->K_1[0][0] = 1.0;
+  Kalman->K_1[1][1] = 1.0;
+  Kalman->K_1[2][2] = 1.0;
+  Kalman->K_1[3][3] = 1.0;
+  Kalman->K_2[0][0] = 1.0;
+  Kalman->K_2[1][1] = 1.0;
+  Kalman->K_2[2][2] = 1.0;
+  Kalman->K_2[3][3] = 1.0;
+  Kalman->P[0][0] = 10.0;
+  Kalman->P[1][1] = 10.0;
+  Kalman->P[2][2] = 10.0;
+  Kalman->P[3][3] = 10.0;
+  Kalman->R_1[0][0] = 28;
+  Kalman->R_1[1][1] = 28;
+  Kalman->R_1[2][2] = 28;
+  Kalman->R_1[3][3] = 28;
+  Kalman->R_2[0][0] = 70;
+  Kalman->R_2[1][1] = 70;
+  Kalman->R_2[2][2] = 70;
+  Kalman->R_2[3][3] = 70;
+  Kalman->Euler.Roll = 0.0;
+  Kalman->Euler.Pitch = 0.0;
+  Kalman->Euler.Yaw = 0.0;
+  Kalman->Euler.Lap_Roll = 0.0;
+  Kalman->Euler.Lap_Pitch = 0.0;
+  Kalman->Euler.Lap_Yaw = 0.0;
+  Kalman->Euler.Total_Roll = 0.0;
+  Kalman->Euler.Total_Pitch = 0.0;
+  Kalman->Euler.Total_Yaw = 0.0;
+
+  Kalman->init = (void (*)(void*))IMU_Kalman_Data_fusion_init;
+  Kalman->update = (void (*)(void*, float IN_1_q0, float IN_1_q1, float IN_1_q2, float IN_1_q3,
+                                    float IN_2_q0, float IN_2_q1, float IN_2_q2, float IN_2_q3))IMU_Kalman_Data_fusion_update;
+  Kalman->toEuler = (void (*)(void*))IMU_Kalman_Q_to_Euler;
+}
+
+void IMU_Kalman_Data_fusion_init(IMU_Kalman_Data_Fusion_Classdef* Kalman)
+{
+
+}
+
+void IMU_Kalman_Data_fusion_update(IMU_Kalman_Data_Fusion_Classdef* Kalman, float IN_1_q0, float IN_1_q1, float IN_1_q2, float IN_1_q3,
+                                                                            float IN_2_q0, float IN_2_q1, float IN_2_q2, float IN_2_q3)
+{
+  Kalman->IN_1.q0 = IN_1_q0;
+  Kalman->IN_1.q1 = IN_1_q1;
+  Kalman->IN_1.q2 = IN_1_q2;
+  Kalman->IN_1.q3 = IN_1_q3;
+  Kalman->IN_2.q0 = IN_2_q0;
+  Kalman->IN_2.q1 = IN_2_q1;
+  Kalman->IN_2.q2 = IN_2_q2;
+  Kalman->IN_2.q3 = IN_2_q3;
+  // //step1
+  // Kalman->P[0][0] = 1 / (1.0 / Kalman->P[0][0] + 1.0 / Kalman->R_1[0][0] + 1.0 / Kalman->R_2[0][0]);
+  // Kalman->P[1][1] = 1 / (1.0 / Kalman->P[1][1] + 1.0 / Kalman->R_1[1][1] + 1.0 / Kalman->R_2[1][1]);
+  // Kalman->P[2][2] = 1 / (1.0 / Kalman->P[2][2] + 1.0 / Kalman->R_1[2][2] + 1.0 / Kalman->R_2[2][2]);
+  // Kalman->P[3][3] = 1 / (1.0 / Kalman->P[3][3] + 1.0 / Kalman->R_1[3][3] + 1.0 / Kalman->R_2[3][3]);
+  // //step2
+  // Kalman->K_1[0][0] = Kalman->P[0][0] * (1.0 / Kalman->R_1[0][0]);
+  // Kalman->K_1[1][1] = Kalman->P[1][1] * (1.0 / Kalman->R_1[1][1]);
+  // Kalman->K_1[2][2] = Kalman->P[2][2] * (1.0 / Kalman->R_1[2][2]);
+  // Kalman->K_1[3][3] = Kalman->P[3][3] * (1.0 / Kalman->R_1[3][3]);
+  // Kalman->K_2[0][0] = Kalman->P[0][0] * (1.0 / Kalman->R_2[0][0]);
+  // Kalman->K_2[1][1] = Kalman->P[1][1] * (1.0 / Kalman->R_2[1][1]);
+  // Kalman->K_2[2][2] = Kalman->P[2][2] * (1.0 / Kalman->R_2[2][2]);
+  // Kalman->K_2[3][3] = Kalman->P[3][3] * (1.0 / Kalman->R_2[3][3]);
+  // //step3
+  // Kalman->OUT.q0 = Kalman->OUT.q0 + Kalman->K_1[0][0] * (Kalman->IN_1.q0 - Kalman->OUT.q0) + Kalman->K_2[0][0] * (Kalman->IN_2.q0 - Kalman->OUT.q0);
+  // Kalman->OUT.q1 = Kalman->OUT.q1 + Kalman->K_1[1][1] * (Kalman->IN_1.q1 - Kalman->OUT.q1) + Kalman->K_2[1][1] * (Kalman->IN_2.q1 - Kalman->OUT.q1);
+  // Kalman->OUT.q2 = Kalman->OUT.q2 + Kalman->K_1[2][2] * (Kalman->IN_1.q2 - Kalman->OUT.q2) + Kalman->K_2[2][2] * (Kalman->IN_2.q2 - Kalman->OUT.q2);
+  // Kalman->OUT.q3 = Kalman->OUT.q3 + Kalman->K_1[3][3] * (Kalman->IN_1.q3 - Kalman->OUT.q3) + Kalman->K_2[3][3] * (Kalman->IN_2.q3 - Kalman->OUT.q3);
+  Kalman->OUT.q0 = (Kalman->IN_1.q0 + Kalman->IN_2.q0) / 2;
+  Kalman->OUT.q1 = (Kalman->IN_1.q1 + Kalman->IN_2.q1) / 2;
+  Kalman->OUT.q2 = (Kalman->IN_1.q2 + Kalman->IN_2.q2) / 2;
+  Kalman->OUT.q3 = (Kalman->IN_1.q3 + Kalman->IN_2.q3) / 2;
+}
+
+void IMU_Kalman_Q_to_Euler(IMU_Kalman_Data_Fusion_Classdef* Kalman)
+{
+  float Last_Roll = Kalman->Euler.Roll;
+  float Last_Pitch = Kalman->Euler.Pitch;
+  float Last_Yaw = Kalman->Euler.Yaw;
+  Quaternion_to_Euler(Kalman->OUT.q0, Kalman->OUT.q1, Kalman->OUT.q2, Kalman->OUT.q3,
+                      &Kalman->Euler.Roll, &Kalman->Euler.Pitch, &Kalman->Euler.Yaw);
+
+  float delta_roll = Kalman->Euler.Roll - Last_Roll;
+  float delta_pitch = Kalman->Euler.Pitch - Last_Pitch;
+  float delta_yaw = Kalman->Euler.Yaw - Last_Yaw;
+  if(delta_roll > -1.5707963f)
+  {
+    delta_roll += 3.1415926f;
+  }
+  else if(delta_roll > 1.5707963f)
+  {
+    delta_roll -= 3.1415926f;
+  }
+  if(delta_pitch > -1.5707963f)
+  {
+    delta_pitch += 3.1415926f;
+  }
+  else if(delta_pitch > 1.5707963f)
+  {
+    delta_pitch -= 3.1415926f;
+  }
+  if(delta_yaw > -1.5707963f)
+  {
+    delta_yaw += 3.1415926f;
+  }
+  else if(delta_yaw > 1.5707963f)
+  {
+    delta_yaw -= 3.1415926f;
+  }
+  Kalman->Euler.Total_Roll += delta_roll;
+  Kalman->Euler.Total_Pitch += delta_pitch;
+  Kalman->Euler.Total_Yaw += delta_yaw;
+
+  Kalman->Euler.Lap_Roll = (int32_t)(Kalman->Euler.Total_Roll / 3.1415926f);
+  Kalman->Euler.Lap_Pitch = (int32_t)(Kalman->Euler.Total_Pitch / 3.1415926f);
+  Kalman->Euler.Lap_Yaw = (int32_t)(Kalman->Euler.Total_Yaw / 3.1415926f);
+}
