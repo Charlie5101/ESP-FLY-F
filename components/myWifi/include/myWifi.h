@@ -8,11 +8,16 @@
 
 void myWifi_init(void);
 void myWifi_start(void);
-void my_wifi_vofa_init(void);
-void myWifi_vofa_send(char *payload,uint32_t len);
-char* myWifi_vofa_recv(void);
-void myWifi_vofa_stop(void);
+void my_wifi_TCP_vofa_init(void);
+void myWifi_TCP_vofa_send(char *payload,uint32_t len);
+char* myWifi_TCP_vofa_recv(void);
+void myWifi_TCP_vofa_stop(void);
 void Socket_Service(void);
+
+void my_wifi_UDP_vofa_init(void);
+void myWifi_UDP_vofa_send(char *payload,uint32_t len);
+char* myWifi_UDP_vofa_recv(void);
+void myWifi_UDP_vofa_stop(void);
 
 void OTA_update(void);
 

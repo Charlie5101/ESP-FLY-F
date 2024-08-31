@@ -244,6 +244,9 @@ void Task_MAIN(void *arg)
   for(;;)
   {
     xSemaphoreTake(Pid_Contrl,portMAX_DELAY);
+    roll_target = 45.0 * Receiver.main_data.ch0;
+    pitch_target = 45.0 * Receiver.main_data.ch1;
+    yaw_target = -30.0 * Receiver.main_data.ch3;
     Control.update(&Control, Receiver.main_data.ch2, roll_target, Roll, pitch_target, Pitch, yaw_target, Yaw);
     Control.cal(&Control);
     xSemaphoreGive(Motor_Adjust);
@@ -260,7 +263,7 @@ void Task_sensor(void *arg)
   static uint8_t BMP_COUNT = 0;
   Senser_Class_init(&Senser);
   imu_timer_create();
-  vTaskDelay(10000);
+  vTaskDelay(5000);
   uint32_t time_k = xTaskGetTickCount();
   imu_intr_enable_and_start();
 
@@ -271,17 +274,6 @@ void Task_sensor(void *arg)
     
     t = 0.001 * (float)(xTaskGetTickCount() - time_k);
     time_k = xTaskGetTickCount();
-
-    // Senser.Kalman.update(&Senser.Kalman, t, 0.0f, 0.0f, 0.0f);
-
-    // Gx = Senser.Kalman.dRoll;
-    // Roll = Senser.Kalman.Roll;
-    // Gy = Senser.Kalman.dPitch;
-    // Pitch = Senser.Kalman.Pitch;
-    // Gz = Senser.Kalman.dYaw;
-    // Yaw = Senser.Kalman.Yaw;
-    // ARoll = Senser.Kalman.ARoll;
-    // APitch = Senser.Kalman.APitch;
 
     Senser.ICM42688P.read_ACC_GYRO(&Senser.ICM42688P, &Senser.ICM42688P.Row_data.Ax, &Senser.ICM42688P.Row_data.Ay, &Senser.ICM42688P.Row_data.Az,
                                                       &Senser.ICM42688P.Row_data.Gx, &Senser.ICM42688P.Row_data.Gy, &Senser.ICM42688P.Row_data.Gz);
@@ -307,7 +299,8 @@ void Task_sensor(void *arg)
 
     Roll = Senser.Mahony_ICM.Euler.Roll / 3.1415926f * 180.0f;
     Pitch = Senser.Mahony_ICM.Euler.Pitch / 3.1415926f * 180.0f;
-    Yaw = Senser.Mahony_ICM.Euler.Yaw / 3.1415926f * 180.0f;
+    // Yaw = Senser.Mahony_ICM.Euler.Yaw / 3.1415926f * 180.0f;
+    Yaw = Senser.Mahony_ICM.Euler.Total_Yaw / 3.1415926f * 180.0f;
 
     if(BMP_COUNT <= 200)
     {
@@ -509,8 +502,9 @@ void Task_receiver_TLM(void *arg)
 {
   for(;;)
   {
-    Receiver.crsf.bat_TLM_send(&Receiver, BAT.fvoltage, 0.0f, 1100, (uint8_t)(BAT.fvoltage / 17.4 * 100));
-    vTaskDelay(200);
+    Receiver.crsf.bat_TLM_send(&Receiver, BAT.fvoltage, 0.0f, 1100, (uint8_t)((BAT.fvoltage - 14) / (17.4 - 14) * 100));
+    Receiver.crsf.attitude_TLM_send(&Receiver, Senser.Kalman.Euler.Roll, Senser.Kalman.Euler.Pitch, Senser.Kalman.Euler.Yaw);
+    vTaskDelay(100);
   }
 }
 
@@ -530,7 +524,8 @@ void Task_UpMonitor(void *arg)
   myWifi_init();
   myWifi_start();
   vTaskDelay(1000);
-  my_wifi_vofa_init();
+  // my_wifi_TCP_vofa_init();
+  my_wifi_UDP_vofa_init();
   vTaskDelay(1000);
   Line.out[WIFI_LINE_NUM * 4] = 0x00;
   Line.out[WIFI_LINE_NUM * 4 + 1] = 0x00;
@@ -538,18 +533,6 @@ void Task_UpMonitor(void *arg)
   Line.out[WIFI_LINE_NUM * 4 + 3] = 0x7F;
   for(;;)
   {
-    // Line.data[0] = Gx;
-    // Line.data[1] = Roll;
-    // Line.data[2] = Senser.Kalman.Gx;
-    // Line.data[3] = Gy;
-    // Line.data[4] = Pitch;
-    // Line.data[5] = Senser.Kalman.Gy;
-    // Line.data[6] = Gz;
-    // Line.data[7] = Yaw;
-    // Line.data[8] = Senser.Kalman.Gz;
-    // Line.data[9] = ARoll;
-    // Line.data[10] = APitch;
-
     // Line.data[0] = Roll;
     // Line.data[1] = Pitch;
     // Line.data[2] = Yaw;
@@ -564,24 +547,30 @@ void Task_UpMonitor(void *arg)
     // Line.data[11] = Gy;
     // Line.data[12] = Gz;
 
+    //ACC Calibrations info
+    // Line.data[0] = Senser.ICM42688P.Row_data.Ax;
+    // Line.data[1] = Senser.ICM42688P.Row_data.Ay;
+    // Line.data[2] = Senser.ICM42688P.Row_data.Az;
+    // Line.data[3] = Senser.BMI270.Row_data.Ax;
+    // Line.data[4] = Senser.BMI270.Row_data.Ay;
+    // Line.data[5] = Senser.BMI270.Row_data.Az;
+
     Line.data[0] = Roll;
     Line.data[1] = Pitch;
     Line.data[2] = Yaw;
     Line.data[3] = Senser.ICM42688P.Row_data.Gx;
     Line.data[4] = Senser.ICM42688P.Row_data.Gy;
     Line.data[5] = Senser.ICM42688P.Row_data.Gz;
-
-    Line.data[6] = Senser.Mahony_BMI.Euler.Roll / 3.1415926f * 180.0f;
-    Line.data[7] = Senser.Mahony_BMI.Euler.Pitch / 3.1415926f * 180.0f;
-    Line.data[8] = Senser.Mahony_BMI.Euler.Yaw / 3.1415926f * 180.0f;
-    // Line.data[9] = Senser.BMI270.Row_data.Gx;
-    // Line.data[10] = Senser.BMI270.Row_data.Gz;
-    // Line.data[11] = Senser.BMI270.Row_data.Gz;
-    Line.data[9] = Senser.Kalman.Euler.Roll / 3.1415926f * 180.0f;
-    Line.data[10] = Senser.Kalman.Euler.Pitch / 3.1415926f * 180.0f;
-    Line.data[11] = Senser.Kalman.Euler.Yaw / 3.1415926f * 180.0f;
-
-    myWifi_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
+    // Line.data[6] = roll_target;
+    // Line.data[7] = pitch_target;
+    Line.data[6] = Senser.Mahony_ICM.ACC_NOMAL;
+    Line.data[7] = Senser.Mahony_BMI.ACC_NOMAL;
+    Line.data[8] = yaw_target;
+    Line.data[9] = Control.PID.Roll.data.Target;
+    Line.data[10] = Control.PID.Roll.data.Current;
+    Line.data[11] = Control.PID.Roll.OUT;
+    // myWifi_TCP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
+    myWifi_UDP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     Socket_Service();
     vTaskDelay(1);
   }
@@ -601,12 +590,15 @@ void Task_Wifi_Recv(void *arg)
   static char* wifi_rec_buff;
   for(;;)
   {
-    wifi_rec_buff = myWifi_vofa_recv();
+    // wifi_rec_buff = myWifi_TCP_vofa_recv();
+    wifi_rec_buff = myWifi_UDP_vofa_recv();
     if(*wifi_rec_buff == 'U')
     {
+      ESP_LOGI("OTA","Decte U");
       //close other wifi
       vTaskSuspend(UpMonitor_Handle);
-      myWifi_vofa_stop();
+      // myWifi_TCP_vofa_stop();
+      myWifi_UDP_vofa_stop();
 
       ESP_LOGI("OTA","Now going to OTA....");
       Indicator.Send_Message(&Indicator, 255, 0, 255, Breath, 255);

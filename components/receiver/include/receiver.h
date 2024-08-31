@@ -548,11 +548,20 @@ typedef struct
 			crsf_sensor_battery_t Bat_Info;
 			uint8_t crc;
 		}PACKED Bat_pack;
+		struct
+		{
+			crsf_header_t header;
+			int16_t Pitch;
+			int16_t Roll;
+			int16_t Yaw;
+			uint8_t crc;
+		}PACKED Attitude_pack;
 
 		void (*crc8_init)(void *Receiver);
 		uint8_t (*crc_check)(void* Receiver, uint8_t* pdata);
 		void (*decode)(void *Receiver);
 		void (*bat_TLM_send)(void *Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining);
+		void (*attitude_TLM_send)(void* Receiver, float Roll, float Pitch, float Yaw);
 	}crsf;
 
 	uint8_t dtmp[REC_BUFF_LEN];

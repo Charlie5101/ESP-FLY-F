@@ -11,6 +11,19 @@
 #define REC_BAUDRATE 420000
 #endif
 
+#define DEAD_ZONE_EDGE 30
+#define THROTTLE_DEAD_ZONE_EDGE 180
+#define DEAD_ZONE_JUDGE( x, EDGE )           \
+if( x > (1024 - EDGE) && x < (1024 + EDGE) ) \
+{                                            \
+  x = 1024;                                  \
+}
+#define THROTTLE_DEAD_ZONE_JUDEGE( x, EDGE ) \
+if( x < EDGE )                               \
+{                                            \
+  x = 0;                                     \
+}
+
 void Receiver_init(Receiver_Classdef* Receiver);
 void Receiver_rec_data(Receiver_Classdef* Receiver, uint8_t* pdata, uint16_t len);
 void CRSF_crc8_init(Receiver_Classdef* Receiver);
@@ -18,6 +31,7 @@ uint8_t CRSF_crc8_check(Receiver_Classdef* Receiver, uint8_t* pdata);
 uint8_t CRSF_crc8_cal(Receiver_Classdef* Receiver, uint8_t* pdata, uint8_t len);
 void CRSF_decode(Receiver_Classdef* Receiver);
 void CRSF_TLM_bat_voltage(Receiver_Classdef* Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining);
+void CRSF_TLM_attitude(Receiver_Classdef* Receiver, float Roll, float Pitch, float Yaw);
 
 void Receiver_Class_init(Receiver_Classdef* Receiver)
 {
@@ -31,11 +45,20 @@ void Receiver_Class_init(Receiver_Classdef* Receiver)
   Receiver->LinkNum = 0;
   bzero(Receiver->crsf.crc8_table, 256);
   bzero(&Receiver->crsf.LinkInfo, LinkStatisticsFrameLength);
+
   Receiver->crsf.Bat_pack.header.device_addr = CRSF_SYNC_BYTE;
   Receiver->crsf.Bat_pack.header.frame_size = BattSensorFrameLength + 2;
   Receiver->crsf.Bat_pack.header.type = CRSF_FRAMETYPE_BATTERY_SENSOR;
   bzero(&Receiver->crsf.Bat_pack.Bat_Info, BattSensorFrameLength);
   Receiver->crsf.Bat_pack.crc = 0;
+
+  Receiver->crsf.Attitude_pack.header.device_addr = CRSF_SYNC_BYTE;
+  Receiver->crsf.Attitude_pack.header.frame_size = CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE + 2;
+  Receiver->crsf.Attitude_pack.header.type = CRSF_FRAMETYPE_ATTITUDE;
+  Receiver->crsf.Attitude_pack.Pitch = 0;
+  Receiver->crsf.Attitude_pack.Roll = 0;
+  Receiver->crsf.Attitude_pack.Yaw = 0;
+  Receiver->crsf.Attitude_pack.crc = 0;
 
   Receiver->init = (void (*)(void*))Receiver_init;
   Receiver->rec_data = (void (*)(void*, uint8_t* pdata, uint16_t len))Receiver_rec_data;
@@ -43,6 +66,7 @@ void Receiver_Class_init(Receiver_Classdef* Receiver)
   Receiver->crsf.crc_check = (uint8_t (*)(void*, uint8_t* pdata))CRSF_crc8_check;
   Receiver->crsf.decode = (void (*)(void*))CRSF_decode;
   Receiver->crsf.bat_TLM_send = (void (*)(void*, float voltage, float current, uint32_t capacity, uint8_t remaining))CRSF_TLM_bat_voltage;
+  Receiver->crsf.attitude_TLM_send = (void (*)(void*, float Roll, float Pitch, float Yaw))CRSF_TLM_attitude;
 
   Receiver->init(Receiver);
 }
@@ -118,6 +142,23 @@ void CRSF_decode(Receiver_Classdef* Receiver)
       {
         case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
           rcPacket_t *rcPack = (rcPacket_t*)&Receiver->dtmp[0];
+          /*dead zone*/
+          DEAD_ZONE_JUDGE( rcPack->channels.ch0, DEAD_ZONE_EDGE);
+          DEAD_ZONE_JUDGE( rcPack->channels.ch1, DEAD_ZONE_EDGE );
+          THROTTLE_DEAD_ZONE_JUDEGE( rcPack->channels.ch2, THROTTLE_DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch3, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch4, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch5, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch6, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch7, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch8, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch9, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch10, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch11, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch12, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch13, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch14, DEAD_ZONE_EDGE );
+          DEAD_ZONE_JUDGE( rcPack->channels.ch15, DEAD_ZONE_EDGE );
           Receiver->main_data.ch0 = ( (float)rcPack->channels.ch0 - 1024 ) / 1024;
           Receiver->main_data.ch1 = ( (float)rcPack->channels.ch1 - 1024 ) / 1024;
           Receiver->main_data.ch2 = ( (float)rcPack->channels.ch2 ) / 2048;  //throttle
@@ -202,9 +243,13 @@ void CRSF_decode(Receiver_Classdef* Receiver)
   }
 }
 
-void CRSF_TLM_attitude(Receiver_Classdef* Receiver)
+void CRSF_TLM_attitude(Receiver_Classdef* Receiver, float Roll, float Pitch, float Yaw)
 {
-
+  Receiver->crsf.Attitude_pack.Roll = ((int16_t)(Roll * 1000 * 10) & 0xFF00) >> 8 | ((int16_t)(Roll * 1000 * 10) & 0x00FF) << 8;
+  Receiver->crsf.Attitude_pack.Pitch = ((int16_t)(Pitch * 1000 * 10) & 0xFF00) >> 8 | ((int16_t)(Pitch * 1000 * 10) & 0x00FF) << 8;
+  Receiver->crsf.Attitude_pack.Yaw = ((int16_t)(Yaw * 1000 * 10) & 0xFF00) >> 8 | ((int16_t)(Yaw * 1000 * 10) & 0x00FF) << 8;
+  Receiver->crsf.Attitude_pack.crc = CRSF_crc8_cal(Receiver, &Receiver->crsf.Attitude_pack.header.type, CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE + 1);
+  uart_send(RECEIVER_UART, (uint8_t*)&Receiver->crsf.Attitude_pack, sizeof(Receiver->crsf.Attitude_pack));
 }
 
 void CRSF_TLM_bat_voltage(Receiver_Classdef* Receiver, float voltage, float current, uint32_t capacity, uint8_t remaining)

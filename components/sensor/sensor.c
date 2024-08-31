@@ -18,6 +18,8 @@
 #define BMI270_ACC_FS               8.0
 #define BMP388_SPEED_HZ             10 * 1000000
 
+#define IN_1_K                      0.5
+
 void IMU_Kalman_init(IMU_Kalman_Classdef* Kalman);
 void IMU_Kalman_update(IMU_Kalman_Classdef* Kalman, float t, float U_roll, float U_pitch, float U_yaw);
 void sensor_init(Senser_Classdef *Senser_Class);
@@ -816,12 +818,21 @@ void ICM_42688P_read_GYRO(ICM42688P_Classdef* ICM, float *Gx, float *Gy, float *
 
 void ICM_42688P_read_ACC_GYRO(ICM42688P_Classdef* ICM, float *Ax, float *Ay, float *Az, float *Gx, float *Gy, float *Gz)
 {
+  static float temp_Ax;
+  static float temp_Ay;
+  static float temp_Az;
   ICM->Tx_Data_Buff[0] = ACCEL_DATA_X1 | ADDR_READ;
   spi_connect_start(SENSOR_HOST,CS_42688P,&ICM->icm_42688p,13 * 8,ICM->Tx_Data_Buff,ICM->Rx_Data_Buff);
   memset(ICM->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
-  *Ax = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8) + ICM->Rx_Data_Buff[2] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Ay = ( (float)(int16_t)( (ICM->Rx_Data_Buff[3] << 8) + ICM->Rx_Data_Buff[4] ) * ICM_42688P_ACC_FS / 32768.0);
-  *Az = ( (float)(int16_t)( (ICM->Rx_Data_Buff[5] << 8) + ICM->Rx_Data_Buff[6] ) * ICM_42688P_ACC_FS / 32768.0);
+  *Ax = ( (float)(int16_t)( (ICM->Rx_Data_Buff[1] << 8) + ICM->Rx_Data_Buff[2] ) * ICM_42688P_ACC_FS / 32768.0) - ICM->acc_calib.Ax_bias;
+  *Ay = ( (float)(int16_t)( (ICM->Rx_Data_Buff[3] << 8) + ICM->Rx_Data_Buff[4] ) * ICM_42688P_ACC_FS / 32768.0) - ICM->acc_calib.Ay_bias;
+  *Az = ( (float)(int16_t)( (ICM->Rx_Data_Buff[5] << 8) + ICM->Rx_Data_Buff[6] ) * ICM_42688P_ACC_FS / 32768.0) - ICM->acc_calib.Az_bias;
+  temp_Ax = ICM->acc_calib.Ax_Cx * *Ax + ICM->acc_calib.Ax_Cy * *Ay + ICM->acc_calib.Ax_Cz * *Az;
+  temp_Ay = ICM->acc_calib.Ay_Cx * *Ax + ICM->acc_calib.Ay_Cy * *Ay + ICM->acc_calib.Ay_Cz * *Az;
+  temp_Az = ICM->acc_calib.Az_Cx * *Ax + ICM->acc_calib.Az_Cy * *Ay + ICM->acc_calib.Az_Cz * *Az;
+  *Ax = temp_Ax;
+  *Ay = temp_Ay;
+  *Az = temp_Az;
   *Gx = ( (float)(int16_t)( (ICM->Rx_Data_Buff[7] << 8) + ICM->Rx_Data_Buff[8] ) * ICM_42688P_GYRO_FS / 32768.0) - ICM->Gx_offset;
   *Gy = ( (float)(int16_t)( (ICM->Rx_Data_Buff[9] << 8) + ICM->Rx_Data_Buff[10] ) * ICM_42688P_GYRO_FS / 32768.0) - ICM->Gy_offset;
   *Gz = ( (float)(int16_t)( (ICM->Rx_Data_Buff[11] << 8) + ICM->Rx_Data_Buff[12] ) * ICM_42688P_GYRO_FS / 32768.0) - ICM->Gz_offset;
@@ -978,12 +989,21 @@ void BMI270_read_GYRO(BMI270_Classdef* BMI, float *Gx,float *Gy,float *Gz)
 
 void BMI270_read_ACC_GYRO(BMI270_Classdef* BMI, float *Ax,float *Ay,float *Az,float *Gx,float *Gy,float *Gz)
 {
+  static float temp_Ax;
+  static float temp_Ay;
+  static float temp_Az;
   BMI->Tx_Data_Buff[0] = DATA_8 | ADDR_READ;
   spi_connect_start(SENSOR_HOST,CS_BMI270,&BMI->bmi_270,14 * 8,BMI->Tx_Data_Buff,BMI->Rx_Data_Buff);
   memset(BMI->Tx_Data_Buff,0,TX_BUFF_MAX_LEN);
-  *Ax = ( (float)(int16_t)( (BMI->Rx_Data_Buff[3] << 8) + BMI->Rx_Data_Buff[2] ) * BMI270_ACC_FS / 32768.0);
-  *Ay = ( (float)(int16_t)( (BMI->Rx_Data_Buff[5] << 8) + BMI->Rx_Data_Buff[4] ) * BMI270_ACC_FS / 32768.0);
-  *Az = ( (float)(int16_t)( (BMI->Rx_Data_Buff[7] << 8) + BMI->Rx_Data_Buff[6] ) * BMI270_ACC_FS / 32768.0);
+  *Ax = ( (float)(int16_t)( (BMI->Rx_Data_Buff[3] << 8) + BMI->Rx_Data_Buff[2] ) * BMI270_ACC_FS / 32768.0) - BMI->acc_calib.Ax_bias;
+  *Ay = ( (float)(int16_t)( (BMI->Rx_Data_Buff[5] << 8) + BMI->Rx_Data_Buff[4] ) * BMI270_ACC_FS / 32768.0) - BMI->acc_calib.Ay_bias;
+  *Az = ( (float)(int16_t)( (BMI->Rx_Data_Buff[7] << 8) + BMI->Rx_Data_Buff[6] ) * BMI270_ACC_FS / 32768.0) - BMI->acc_calib.Az_bias;
+  temp_Ax = BMI->acc_calib.Ax_Cx * *Ax + BMI->acc_calib.Ax_Cy * *Ay + BMI->acc_calib.Ax_Cz * *Az;
+  temp_Ay = BMI->acc_calib.Ay_Cx * *Ax + BMI->acc_calib.Ay_Cy * *Ay + BMI->acc_calib.Ay_Cz * *Az;
+  temp_Az = BMI->acc_calib.Az_Cx * *Ax + BMI->acc_calib.Az_Cy * *Ay + BMI->acc_calib.Az_Cz * *Az;
+  *Ax = temp_Ax;
+  *Ay = temp_Ay;
+  *Az = temp_Az;
   *Gx = ( (float)(int16_t)( (BMI->Rx_Data_Buff[9] << 8) + BMI->Rx_Data_Buff[8] ) * BMI270_GYRO_FS / 32768.0) - BMI->Gx_offset;
   *Gy = ( (float)(int16_t)( (BMI->Rx_Data_Buff[11] << 8) + BMI->Rx_Data_Buff[10] ) * BMI270_GYRO_FS / 32768.0) - BMI->Gy_offset;
   *Gz = ( (float)(int16_t)( (BMI->Rx_Data_Buff[13] << 8) + BMI->Rx_Data_Buff[12] ) * BMI270_GYRO_FS / 32768.0) - BMI->Gz_offset;
@@ -1236,17 +1256,6 @@ void Senser_Class_init(Senser_Classdef *Senser_Class)
 {
   Senser_Class->init = (void (*)(void*))sensor_init;
 
-  // IMU_Kalman_Class_init(&Senser_Class->Kalman, 0.0001,
-  //                                           0.1,  0.0,  0.0,  0.1,
-  //                                           0.1,  0.0,  0.0,  0.1,
-  //                                           0.1,  0.0,  0.0,  0.1,
-
-  //                                           350.0,  0.0,  0.0,  350.0,       //350.0,  0.0,  0.0,  350.0,
-  //                                           250.0,  0.0,  0.0,  250.0,        //35.0,  0.0,  0.0,  35.0,
-  //                                           150.0,  0.0,  0.0,  150.0);       //100.0,  0.0,  0.0,  100.0
-  //                                           // .02,  0.0,  0.0,  0.02,
-  //                                           // 2.5,   0.0,  0.0,  2.5,
-  //                                           // 0.2,   0.0,  0.0,  0.2
   IMU_Kalman_Data_fusion_Class_init(&(Senser_Class->Kalman));
   IMU_Mahony_Class_init(&(Senser_Class->Mahony_ICM), 0.5f, 0.0f);
   IMU_Mahony_Class_init(&(Senser_Class->Mahony_BMI), 0.5f, 0.0f);
@@ -1270,6 +1279,18 @@ void ICM42688P_Class_init(ICM42688P_Classdef *ICM_Class)
   ICM_Class->Row_data.Ax = 0.0f;
   ICM_Class->Row_data.Ay = 0.0f;
   ICM_Class->Row_data.Az = 0.0f;
+  ICM_Class->acc_calib.Ax_bias = -0.0025;
+  ICM_Class->acc_calib.Ax_Cx = 1.0030;
+  ICM_Class->acc_calib.Ax_Cy = -0.0055;
+  ICM_Class->acc_calib.Ax_Cz = -0.0081;
+  ICM_Class->acc_calib.Ay_bias = 0.00064037;
+  ICM_Class->acc_calib.Ay_Cx = 0.0081;
+  ICM_Class->acc_calib.Ay_Cy = 1.0032;
+  ICM_Class->acc_calib.Ay_Cz = 0.0123;
+  ICM_Class->acc_calib.Az_bias = -0.0181;
+  ICM_Class->acc_calib.Az_Cx = 0.0028;
+  ICM_Class->acc_calib.Az_Cy = -0.0091;
+  ICM_Class->acc_calib.Az_Cz = 1.0015;
 
   ICM_Class->init = (void (*)(void*))ICM_42688P_init;
   ICM_Class->read_Temp = (float (*)(void*))ICM_42688P_read_Temp;
@@ -1296,6 +1317,21 @@ void BMI270_Class_init(BMI270_Classdef *BMI_Class)
   BMI_Class->Row_data.Ax = 0.0f;
   BMI_Class->Row_data.Ay = 0.0f;
   BMI_Class->Row_data.Az = 0.0f;
+    BMI_Class->acc_calib.Ax_bias = 0.0151;
+  // BMI_Class->acc_calib.Ax_bias = 0; //0.0151;
+  BMI_Class->acc_calib.Ax_Cx = 0.9982;
+  BMI_Class->acc_calib.Ax_Cy = 0.0122;
+  BMI_Class->acc_calib.Ax_Cz = 0.0086;
+    BMI_Class->acc_calib.Ay_bias = -0.0054;
+  // BMI_Class->acc_calib.Ay_bias = 0; //-0.0054;
+  BMI_Class->acc_calib.Ay_Cx = 0.0144;
+  BMI_Class->acc_calib.Ay_Cy = 0.9965;
+  BMI_Class->acc_calib.Ay_Cz = 0.0078;
+   BMI_Class->acc_calib.Az_bias = -0.0054;
+  // BMI_Class->acc_calib.Az_bias = 0; //-0.0054;
+  BMI_Class->acc_calib.Az_Cx = -0.0145;
+  BMI_Class->acc_calib.Az_Cy = -0.0017;
+  BMI_Class->acc_calib.Az_Cz = 0.9964;
 
   BMI_Class->init = (void (*)(void*))BMI270_init;
   BMI_Class->read_Temp = (float (*)(void*))BMI270_read_Temp;
@@ -1664,8 +1700,6 @@ void IMU_Mahony_Class_init(IMU_Mahony_Classdef* Mahony, float kp, float ki)
   Mahony->quaternion.q1 = 0.0;
   Mahony->quaternion.q2 = 0.0;
   Mahony->quaternion.q3 = 0.0;
-  // Mahony->param.twoKp = 2.0f * 0.5f;
-  // Mahony->param.twoKi = 2.0f * 0.0f;
   Mahony->param.twoKp = 2.0f * kp;
   Mahony->param.twoKi = 2.0f * ki;
   Mahony->temp.integralFBx  = 0.0f;
@@ -1713,10 +1747,15 @@ void IMU_Mahony_update(IMU_Mahony_Classdef* Mahony, float gx, float gy, float gz
 		ay *= recipNorm;
 		az *= recipNorm;
 
+    // ESP_LOGI("Senser: ", "%f" , (fabsf(recipNorm - 1)) );
+    Mahony->ACC_NOMAL = fabsf(recipNorm - 1);
     //Compute acceleration level and Kp,Ki
     if(fabsf(recipNorm - 1) < 0.015)
     {
-      
+      if(fabsf(gz) < 0.043)
+      {
+        gz = 0;
+      }
     }
     else if(fabsf(recipNorm - 1) >= 0.015 && fabsf(recipNorm - 1) < 5.0)
     {
@@ -1792,15 +1831,16 @@ void IMU_Mahony_Q_to_Euler(IMU_Mahony_Classdef* Mahony)
   float delta_roll = Mahony->Euler.Roll - Last_Roll;
   float delta_pitch = Mahony->Euler.Pitch - Last_Pitch;
   float delta_yaw = Mahony->Euler.Yaw - Last_Yaw;
-  if(delta_roll > -1.5707963f)
+  if(delta_roll < -3.1415926f)
   {
-    delta_roll += 3.1415926f;
+    delta_roll += 6.2831852f;
   }
-  else if(delta_roll > 1.5707963f)
+  else if(delta_roll > 3.1415925f)
   {
-    delta_roll -= 3.1415926f;
+    delta_roll -= 6.2831852f;
   }
-  if(delta_pitch > -1.5707963f)
+
+  if(delta_pitch < -1.5707963f)
   {
     delta_pitch += 3.1415926f;
   }
@@ -1808,21 +1848,22 @@ void IMU_Mahony_Q_to_Euler(IMU_Mahony_Classdef* Mahony)
   {
     delta_pitch -= 3.1415926f;
   }
-  if(delta_yaw > -1.5707963f)
+  
+  if(delta_yaw < -3.1415926f)
   {
-    delta_yaw += 3.1415926f;
+    delta_yaw += 6.2831852f;
   }
-  else if(delta_yaw > 1.5707963f)
+  else if(delta_yaw > 3.1415925f)
   {
-    delta_yaw -= 3.1415926f;
+    delta_yaw -= 6.2831852f;
   }
   Mahony->Euler.Total_Roll += delta_roll;
   Mahony->Euler.Total_Pitch += delta_pitch;
   Mahony->Euler.Total_Yaw += delta_yaw;
 
-  Mahony->Euler.Lap_Roll = (int32_t)(Mahony->Euler.Total_Roll / 3.1415926f);
-  Mahony->Euler.Lap_Pitch = (int32_t)(Mahony->Euler.Total_Pitch / 3.1415926f);
-  Mahony->Euler.Lap_Yaw = (int32_t)(Mahony->Euler.Total_Yaw / 3.1415926f);
+  Mahony->Euler.Lap_Roll = (int32_t)(Mahony->Euler.Total_Roll / 6.2831852f);
+  Mahony->Euler.Lap_Pitch = (int32_t)(Mahony->Euler.Total_Pitch / 6.2831852f);
+  Mahony->Euler.Lap_Yaw = (int32_t)(Mahony->Euler.Total_Yaw / 6.2831852f);
 }
 
 void Quaternion_to_Euler(float q0, float q1, float q2, float q3, float* Roll, float* Pitch, float* Yaw)
@@ -1936,10 +1977,10 @@ void IMU_Kalman_Data_fusion_update(IMU_Kalman_Data_Fusion_Classdef* Kalman, floa
   // Kalman->OUT.q1 = Kalman->OUT.q1 + Kalman->K_1[1][1] * (Kalman->IN_1.q1 - Kalman->OUT.q1) + Kalman->K_2[1][1] * (Kalman->IN_2.q1 - Kalman->OUT.q1);
   // Kalman->OUT.q2 = Kalman->OUT.q2 + Kalman->K_1[2][2] * (Kalman->IN_1.q2 - Kalman->OUT.q2) + Kalman->K_2[2][2] * (Kalman->IN_2.q2 - Kalman->OUT.q2);
   // Kalman->OUT.q3 = Kalman->OUT.q3 + Kalman->K_1[3][3] * (Kalman->IN_1.q3 - Kalman->OUT.q3) + Kalman->K_2[3][3] * (Kalman->IN_2.q3 - Kalman->OUT.q3);
-  Kalman->OUT.q0 = (Kalman->IN_1.q0 + Kalman->IN_2.q0) / 2;
-  Kalman->OUT.q1 = (Kalman->IN_1.q1 + Kalman->IN_2.q1) / 2;
-  Kalman->OUT.q2 = (Kalman->IN_1.q2 + Kalman->IN_2.q2) / 2;
-  Kalman->OUT.q3 = (Kalman->IN_1.q3 + Kalman->IN_2.q3) / 2;
+  Kalman->OUT.q0 = (Kalman->IN_1.q0 * IN_1_K + Kalman->IN_2.q0 * (1 - IN_1_K));
+  Kalman->OUT.q1 = (Kalman->IN_1.q1 * IN_1_K + Kalman->IN_2.q1 * (1 - IN_1_K));
+  Kalman->OUT.q2 = (Kalman->IN_1.q2 * IN_1_K + Kalman->IN_2.q2 * (1 - IN_1_K));
+  Kalman->OUT.q3 = (Kalman->IN_1.q3 * IN_1_K + Kalman->IN_2.q3 * (1 - IN_1_K));
 }
 
 void IMU_Kalman_Q_to_Euler(IMU_Kalman_Data_Fusion_Classdef* Kalman)
@@ -1953,15 +1994,16 @@ void IMU_Kalman_Q_to_Euler(IMU_Kalman_Data_Fusion_Classdef* Kalman)
   float delta_roll = Kalman->Euler.Roll - Last_Roll;
   float delta_pitch = Kalman->Euler.Pitch - Last_Pitch;
   float delta_yaw = Kalman->Euler.Yaw - Last_Yaw;
-  if(delta_roll > -1.5707963f)
+  if(delta_roll < -3.1415926f)
   {
-    delta_roll += 3.1415926f;
+    delta_roll += 6.2831852f;
   }
-  else if(delta_roll > 1.5707963f)
+  else if(delta_roll > 3.1415925f)
   {
-    delta_roll -= 3.1415926f;
+    delta_roll -= 6.2831852f;
   }
-  if(delta_pitch > -1.5707963f)
+
+  if(delta_pitch < -1.5707963f)
   {
     delta_pitch += 3.1415926f;
   }
@@ -1969,19 +2011,20 @@ void IMU_Kalman_Q_to_Euler(IMU_Kalman_Data_Fusion_Classdef* Kalman)
   {
     delta_pitch -= 3.1415926f;
   }
-  if(delta_yaw > -1.5707963f)
+  
+  if(delta_yaw < -3.1415926f)
   {
-    delta_yaw += 3.1415926f;
+    delta_yaw += 6.2831852f;
   }
-  else if(delta_yaw > 1.5707963f)
+  else if(delta_yaw > 3.1415925f)
   {
-    delta_yaw -= 3.1415926f;
+    delta_yaw -= 6.2831852f;
   }
   Kalman->Euler.Total_Roll += delta_roll;
   Kalman->Euler.Total_Pitch += delta_pitch;
   Kalman->Euler.Total_Yaw += delta_yaw;
 
-  Kalman->Euler.Lap_Roll = (int32_t)(Kalman->Euler.Total_Roll / 3.1415926f);
-  Kalman->Euler.Lap_Pitch = (int32_t)(Kalman->Euler.Total_Pitch / 3.1415926f);
-  Kalman->Euler.Lap_Yaw = (int32_t)(Kalman->Euler.Total_Yaw / 3.1415926f);
+  Kalman->Euler.Lap_Roll = (int32_t)(Kalman->Euler.Total_Roll / 6.2831852f);
+  Kalman->Euler.Lap_Pitch = (int32_t)(Kalman->Euler.Total_Pitch / 6.2831852f);
+  Kalman->Euler.Lap_Yaw = (int32_t)(Kalman->Euler.Total_Yaw / 6.2831852f);
 }

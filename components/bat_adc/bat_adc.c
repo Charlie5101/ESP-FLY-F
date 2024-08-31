@@ -52,7 +52,7 @@ void BAT_Voltage_Read(BAT_Voltage_Classdef* BAT_Class)
     ESP_ERROR_CHECK(adc_cali_raw_to_voltage(BAT_Class->ADC_Cali_Handle, BAT_Class->raw_data, &BAT_Class->voltage));
     // ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", BAT_ADC_UNIT + 1, BAT_ADC_CHANNEL, BAT_Class->voltage);
     BAT_Class->fvoltage = (float)(BAT_Class->voltage * 11) / 1000.0;
-    ESP_LOGI(TAG, "%f", BAT_Class->fvoltage);
+    // ESP_LOGI(TAG, "%f", BAT_Class->fvoltage);
   }
 }
 

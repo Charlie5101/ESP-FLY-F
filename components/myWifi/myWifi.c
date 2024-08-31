@@ -27,6 +27,12 @@ bool AP_CONNECT_STATE = false;
 static const char *TAG = "My Wifi";
 
 #define Port        1347
+#define UDP_Port    3333
+#define LOCAL_PORT  1346
+// #define UDP_HOST_IP "192.168.137.1"
+#define UDP_HOST_IP "255.255.255.255"
+struct sockaddr_in local_addr;
+
 char rx_buffer[WIFI_REC_BUFF_LEN];
 char host_ip[] = "192.168.137.1";
 int addr_family = 0;
@@ -203,7 +209,7 @@ void Socket_Service(void)
   }
 }
 
-void my_wifi_vofa_init(void)
+void my_wifi_TCP_vofa_init(void)
 {
   Socket_ERR = xSemaphoreCreateBinary();
   if(Socket_ERR == NULL)
@@ -263,7 +269,7 @@ void myWifi_Socket_Re_Connect(void)
   ESP_LOGI(TAG, "Successfully connected");
 }
 
-void myWifi_vofa_send(char *payload,uint32_t len)
+void myWifi_TCP_vofa_send(char *payload,uint32_t len)
 {
   if(socket_service_state == SOCKET_WAIT)
   {
@@ -295,7 +301,7 @@ void myWifi_vofa_send(char *payload,uint32_t len)
   // }
 }
 
-char* myWifi_vofa_recv(void)
+char* myWifi_TCP_vofa_recv(void)
 {
   while(socket_service_state != SOCKET_WAIT)
   {
@@ -324,7 +330,7 @@ char* myWifi_vofa_recv(void)
   return rx_buffer;
 }
 
-void myWifi_vofa_stop(void)
+void myWifi_TCP_vofa_stop(void)
 {
   shutdown(sock,0);
   int err = close(sock);
@@ -335,7 +341,7 @@ void myWifi_vofa_stop(void)
       vTaskDelay(1000);
     }
   }
-  ESP_LOGE(TAG, "Vofa Socket close");
+  ESP_LOGW(TAG, "Vofa Socket close");
 }
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
@@ -404,7 +410,7 @@ void OTA_update(void)
   get_sha256_of_partitions();
 
   esp_http_client_config_t http_config = {
-    .url = "http://110.65.43.89:8040/build/ESP-FLY-F.bin",
+    .url = "http://192.168.137.1:8040/build/ESP-FLY.bin",
     // .cert_pem = (char *)server_cert_pem_start,
     .crt_bundle_attach = esp_crt_bundle_attach,
     .event_handler = _http_event_handler,
@@ -424,4 +430,112 @@ void OTA_update(void)
   while (1) {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
+}
+
+void my_wifi_UDP_vofa_init(void)
+{
+  Socket_ERR = xSemaphoreCreateBinary();
+  if(Socket_ERR == NULL)
+  {
+    ESP_LOGE(TAG, "Socket_ERR Semap Create Fail");
+  }
+  //wait WIFI AP connect
+  while(AP_CONNECT_STATE != true)
+  {
+    vTaskDelay(500);
+  }
+
+  addr_family = AF_INET;
+  ip_protocol = IPPROTO_IP;
+
+  sock =  socket(addr_family, SOCK_DGRAM, ip_protocol);
+  while(sock < 0)
+  {
+    ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
+    vTaskDelay(1000);
+    ESP_LOGW(TAG, "Retry to create socket......");
+    sock =  socket(addr_family, SOCK_DGRAM, ip_protocol);
+  }
+
+  dest_addr.sin_family = AF_INET;
+  dest_addr.sin_addr.s_addr = inet_addr(UDP_HOST_IP);
+  dest_addr.sin_port = htons(UDP_Port);
+
+  local_addr.sin_family = AF_INET;
+  local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  local_addr.sin_port = htons(LOCAL_PORT);
+  uint8_t res = 0;
+  res = bind(sock, (struct sockaddr*)&local_addr, sizeof(local_addr));
+  if(res != 0)
+  {
+    ESP_LOGW(TAG, "Bind Err");
+  }
+
+  ESP_LOGI(TAG, "Socket created, Config to %s:%d", UDP_HOST_IP, UDP_Port);
+
+  socket_service_state = SOCKET_WAIT;
+}
+
+void myWifi_UDP_vofa_send(char *payload,uint32_t len)
+{
+  if(socket_service_state == SOCKET_WAIT)
+  {
+    // int err = sendto(sock, payload, strlen(payload), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    int err = sendto(sock, payload, len, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    if(err < 0)
+    {
+      ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+      if(socket_service_state == SOCKET_WAIT)
+      {
+        xSemaphoreGive(Socket_ERR);
+        ESP_LOGW(TAG, "Socket_ERR Give");
+      }
+    }
+  }
+}
+
+char* myWifi_UDP_vofa_recv(void)
+{
+  while(socket_service_state != SOCKET_WAIT)
+  {
+    vTaskDelay(1000);
+  }
+  struct sockaddr_storage source_addr;
+  socklen_t socklen = sizeof(source_addr);
+  int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr*)&source_addr, &socklen);
+
+  // Error occurred during receiving
+  if (len < 0) {
+    ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+    if(socket_service_state == SOCKET_WAIT)
+      xSemaphoreGive(Socket_ERR);
+  }
+  // Data received
+  else {
+    rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+    ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
+    ESP_LOGI(TAG, "%s", rx_buffer);
+    return rx_buffer;
+  }
+
+  // if (sock != -1) {
+  //   ESP_LOGE(TAG, "Shutting down socket and restarting...");
+  //   shutdown(sock, 0);
+  //   close(sock);
+  // }
+  return rx_buffer;
+}
+
+void myWifi_UDP_vofa_stop(void)
+{
+  shutdown(sock,0);
+  int err = close(sock);
+  if (err < 0) {
+    ESP_LOGE(TAG, "Error occurred during clossing: errno %d", errno);
+    while(1)
+    {
+      vTaskDelay(1000);
+    }
+  }
+  ESP_LOGW(TAG, "Vofa Socket close");
 }

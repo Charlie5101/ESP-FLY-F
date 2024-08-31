@@ -295,6 +295,22 @@ typedef struct{
   float Gz_offset;
   uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
   uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
+
+  struct
+  {
+    float Ax_bias;
+    float Ax_Cx;
+    float Ax_Cy;
+    float Ax_Cz;
+    float Ay_bias;
+    float Ay_Cx;
+    float Ay_Cy;
+    float Ay_Cz;
+    float Az_bias;
+    float Az_Cz;
+    float Az_Cx;
+    float Az_Cy;
+  }acc_calib;
   
   struct
   {
@@ -324,6 +340,22 @@ typedef struct{
   float Gz_offset;
   uint8_t Rx_Data_Buff[RX_BUFF_MAX_LEN];
   uint8_t Tx_Data_Buff[TX_BUFF_MAX_LEN];
+
+  struct
+  {
+    float Ax_bias;
+    float Ax_Cx;
+    float Ax_Cy;
+    float Ax_Cz;
+    float Ay_bias;
+    float Ay_Cx;
+    float Ay_Cy;
+    float Ay_Cz;
+    float Az_bias;
+    float Az_Cz;
+    float Az_Cx;
+    float Az_Cy;
+  }acc_calib;
 
   struct
   {
@@ -451,6 +483,8 @@ typedef struct
     float Total_Pitch;
     float Total_Yaw;
   }Euler;
+
+  float ACC_NOMAL;
 
   void (*init)(void* Mahony_Class);
   void (*update)(void* Mahony_Class, float gx, float gy, float gz, float ax, float ay, float az, float t);
