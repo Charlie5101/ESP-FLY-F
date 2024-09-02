@@ -219,7 +219,7 @@ void Kalman_2_cal(myKalman_2 *Kalman,float F_1,float F_2,float F_3,float F_4,
                Kalman->H[1][1] * (temp[0][1]) + Kalman->R[1][0];
   Temp[1][1] = Kalman->H[1][0] * (temp[1][0]) + 
                Kalman->H[1][1] * (temp[1][1]) + Kalman->R[1][1];
-  float Temp_2[2][2];
+  static float Temp_2[2][2];
   GetMatrixInverse(Temp,2,Temp_2);
   temp[0][0] = Kalman->H[0][0] * Temp_2[0][0] + Kalman->H[1][0] * Temp_2[1][0];
   temp[0][1] = Kalman->H[0][1] * Temp_2[0][0] + Kalman->H[1][1] * Temp_2[1][0];

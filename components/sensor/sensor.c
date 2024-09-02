@@ -1879,7 +1879,8 @@ void Quaternion_to_Euler(float q0, float q1, float q2, float q3, float* Roll, fl
 
 float invSqrt(float x) {
 	float halfx = 0.5f * x;
-	float y = x;
+	static float y;
+  y = x;
 	long i = *(long*)&y;
 	i = 0x5f3759df - (i>>1);
 	y = *(float*)&i;

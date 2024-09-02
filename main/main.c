@@ -215,26 +215,26 @@ void Task_MAIN(void *arg)
   PID_param->Roll.Kp = 30.0;
   PID_param->Roll.Ki = 0.0;
   PID_param->Roll.Kd = 0.0;
-  PID_param->Roll.P_Limit = 1000.0;
+  PID_param->Roll.P_Limit = 10000.0;
   PID_param->Roll.I_Limit = 2000.0;
   PID_param->Roll.D_Limit = 100.0;
-  PID_param->Roll.OUT_Limit = 30000.0;
+  PID_param->Roll.OUT_Limit = 10000.0;
 
   PID_param->Pitch.Kp = 30.0;
   PID_param->Pitch.Ki = 0.0;
   PID_param->Pitch.Kd = 0.0;
-  PID_param->Pitch.P_Limit = 1000.0;
+  PID_param->Pitch.P_Limit = 10000.0;
   PID_param->Pitch.I_Limit = 2000.0;
   PID_param->Pitch.D_Limit = 100.0;
-  PID_param->Pitch.OUT_Limit = 30000.0;
+  PID_param->Pitch.OUT_Limit = 10000.0;
 
   PID_param->Yaw.Kp = 30.0;
   PID_param->Yaw.Ki = 0.0;
   PID_param->Yaw.Kd = 0.0;
-  PID_param->Yaw.P_Limit = 1000.0;
+  PID_param->Yaw.P_Limit = 10000.0;
   PID_param->Yaw.I_Limit = 2000.0;
   PID_param->Yaw.D_Limit = 100.0;
-  PID_param->Yaw.OUT_Limit = 30000.0;
+  PID_param->Yaw.OUT_Limit = 10000.0;
 
   Control_Class_init(&Control, *PID_param);
   vPortFree(PID_param);
@@ -508,7 +508,7 @@ void Task_receiver_TLM(void *arg)
   }
 }
 
-#define WIFI_LINE_NUM   12
+#define WIFI_LINE_NUM   16
 /**
  * @brief 
  * 
@@ -569,6 +569,10 @@ void Task_UpMonitor(void *arg)
     Line.data[9] = Control.PID.Roll.data.Target;
     Line.data[10] = Control.PID.Roll.data.Current;
     Line.data[11] = Control.PID.Roll.OUT;
+    Line.data[12] = Control.power_out.throttle_A;
+    Line.data[13] = Control.power_out.throttle_B;
+    Line.data[14] = Control.power_out.throttle_C;
+    Line.data[15] = Control.power_out.throttle_D;
     // myWifi_TCP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     myWifi_UDP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
     Socket_Service();
