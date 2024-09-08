@@ -212,7 +212,7 @@ uint8_t app_main(void)
 void Task_MAIN(void *arg)
 {
   Control_PID_param* PID_param = (Control_PID_param*)pvPortMalloc(84);
-  PID_param->Roll.Kp = 30.0;
+  PID_param->Roll.Kp = 200.0;
   PID_param->Roll.Ki = 0.0;
   PID_param->Roll.Kd = 0.0;
   PID_param->Roll.P_Limit = 10000.0;
@@ -220,7 +220,7 @@ void Task_MAIN(void *arg)
   PID_param->Roll.D_Limit = 100.0;
   PID_param->Roll.OUT_Limit = 10000.0;
 
-  PID_param->Pitch.Kp = 30.0;
+  PID_param->Pitch.Kp = 200.0;
   PID_param->Pitch.Ki = 0.0;
   PID_param->Pitch.Kd = 0.0;
   PID_param->Pitch.P_Limit = 10000.0;
@@ -228,7 +228,7 @@ void Task_MAIN(void *arg)
   PID_param->Pitch.D_Limit = 100.0;
   PID_param->Pitch.OUT_Limit = 10000.0;
 
-  PID_param->Yaw.Kp = 30.0;
+  PID_param->Yaw.Kp = 200.0;
   PID_param->Yaw.Ki = 0.0;
   PID_param->Yaw.Kd = 0.0;
   PID_param->Yaw.P_Limit = 10000.0;
@@ -407,8 +407,15 @@ void Task_motor(void *arg)
     xSemaphoreTake(Motor_Adjust, portMAX_DELAY);
     // ESP_LOGI("MOTOR", "%d:", M1_throttle);
     // ESP_LOGI("MOTOR", "%f:", Receiver.main_data.ch2 *2000);
-    DSHOT.Set_All_Throttle(&DSHOT, Control.power_out.throttle_A, Control.power_out.throttle_B, Control.power_out.throttle_C, Control.power_out.throttle_D);
     // ESP_LOGI("MOTOR", "%d:", Control.power_out.throttle_A);
+    if(Receiver.main_data.ch4 > 0 && Receiver.LinkState == true)
+    {
+      DSHOT.Set_All_Throttle(&DSHOT, Control.power_out.throttle_A, Control.power_out.throttle_B, Control.power_out.throttle_C, Control.power_out.throttle_D);
+    }
+    else
+    {
+      DSHOT.Set_All_Throttle(&DSHOT, 0, 0, 0, 0);
+    }
   }
 }
 

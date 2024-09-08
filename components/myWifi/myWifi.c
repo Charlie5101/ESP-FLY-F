@@ -410,7 +410,7 @@ void OTA_update(void)
   get_sha256_of_partitions();
 
   esp_http_client_config_t http_config = {
-    .url = "http://192.168.137.1:8040/build/ESP-FLY.bin",
+    .url = "http://10.197.219.80:8070/ESP-FLY.bin",
     // .cert_pem = (char *)server_cert_pem_start,
     .crt_bundle_attach = esp_crt_bundle_attach,
     .event_handler = _http_event_handler,
@@ -460,6 +460,7 @@ void my_wifi_UDP_vofa_init(void)
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_addr.s_addr = inet_addr(UDP_HOST_IP);
   dest_addr.sin_port = htons(UDP_Port);
+  ESP_LOGI(TAG, "Socket created, Config to %s:%d", UDP_HOST_IP, UDP_Port);
 
   local_addr.sin_family = AF_INET;
   local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -470,9 +471,8 @@ void my_wifi_UDP_vofa_init(void)
   {
     ESP_LOGW(TAG, "Bind Err");
   }
-
-  ESP_LOGI(TAG, "Socket created, Config to %s:%d", UDP_HOST_IP, UDP_Port);
-
+  ESP_LOGI(TAG, "BIND Port:%d", LOCAL_PORT);
+  
   socket_service_state = SOCKET_WAIT;
 }
 

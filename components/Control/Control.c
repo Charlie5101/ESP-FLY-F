@@ -78,19 +78,19 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   temp_throttle_A = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
                     - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
   temp_throttle_B = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
                     - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
   temp_throttle_C = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
                     + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
   temp_throttle_D = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
                     + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
   // temp_throttle_A = Control->Throttle * 2000 - 170;
   // temp_throttle_B = Control->Throttle * 2000 - 170;
   // temp_throttle_C = Control->Throttle * 2000 - 170;
