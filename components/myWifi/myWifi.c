@@ -3,7 +3,6 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_netif.h"
-#include "lwip/sockets.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
@@ -11,44 +10,36 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-typedef enum{
-  SOCKET_INIT,
-  SOCKET_CREATE,
-  SOCKET_CONNECT,
-  SOCKET_WAIT,
-  SOCKET_DISCONNECT,
-}Socket_State_t;
-
-Socket_State_t socket_service_state;
-SemaphoreHandle_t Socket_ERR;
-
-bool AP_CONNECT_STATE = false;
-
 static const char *TAG = "My Wifi";
 
 #define Port        1347
+#define HOST_IP     "192.168.137.1"
 #define UDP_Port    3333
 #define LOCAL_PORT  1346
 // #define UDP_HOST_IP "192.168.137.1"
 #define UDP_HOST_IP "255.255.255.255"
-struct sockaddr_in local_addr;
-
-char rx_buffer[WIFI_REC_BUFF_LEN];
-char host_ip[] = "192.168.137.1";
-int addr_family = 0;
-int ip_protocol = 0;
-struct sockaddr_in dest_addr;
-int sock;
-
-uint8_t AP_retry_num = 0;
-
-esp_event_handler_instance_t instance_any_id;
-esp_event_handler_instance_t instance_got_ip;
+// char host_ip[] = "192.168.137.1";
 
 #define HASH_LEN 32
 // extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
-void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *event_data)
+void myWifi_init(My_Wifi_Classdef* My_Wifi);
+void myWifi_start(void);
+void myWifi_stop(void);
+void my_wifi_TCP_vofa_init(My_Wifi_Classdef* My_Wifi);
+void myWifi_TCP_vofa_send(My_Wifi_Classdef* My_Wifi, char *payload, uint32_t len);
+char* myWifi_TCP_vofa_recv(My_Wifi_Classdef* My_Wifi);
+void myWifi_TCP_vofa_stop(My_Wifi_Classdef* My_Wifi);
+void Socket_Service(My_Wifi_Classdef* My_Wifi);
+
+void my_wifi_UDP_vofa_init(My_Wifi_Classdef* My_Wifi);
+void myWifi_UDP_vofa_send(My_Wifi_Classdef* My_Wifi, char *payload, uint32_t len);
+char* myWifi_UDP_vofa_recv(My_Wifi_Classdef* My_Wifi);
+void myWifi_UDP_vofa_stop(My_Wifi_Classdef* My_Wifi);
+
+void OTA_update(void);
+
+void event_handler(My_Wifi_Classdef* arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
   if(event_base == WIFI_EVENT)
   {
@@ -65,10 +56,10 @@ void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *
       //   } else {
       //       xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
       //   }
-      if(AP_retry_num < MAX_RETRY_TIMES)
+      if(arg->AP_retry_num < MAX_RETRY_TIMES)
       {
         esp_wifi_connect();
-        AP_retry_num++;
+        (arg->AP_retry_num)++;
         ESP_LOGW(TAG,"Retry connect to the AP......");
       }
       else
@@ -89,7 +80,7 @@ void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *
       ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
       // s_retry_num = 0;
       // xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-      AP_CONNECT_STATE = true;
+      arg->AP_CONNECT_STATE = true;
       break;
     default:
       break;
@@ -97,7 +88,7 @@ void event_handler(void *arg,esp_event_base_t event_base,int32_t event_id,void *
   }
 }
 
-void myWifi_init(void)
+void myWifi_init(My_Wifi_Classdef* My_Wifi)
 {
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -105,13 +96,13 @@ void myWifi_init(void)
   ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
                                                       ESP_EVENT_ANY_ID,
                                                       &event_handler,
-                                                      NULL,
-                                                      &instance_any_id));
+                                                      (void*)My_Wifi,
+                                                      &My_Wifi->instance_any_id));
   ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
                                                       IP_EVENT_STA_GOT_IP,
                                                       &event_handler,
-                                                      NULL,
-                                                      &instance_got_ip));
+                                                      (void*)My_Wifi,
+                                                      &My_Wifi->instance_got_ip));
   wifi_init_config_t mywifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&mywifi_init_cfg));
   wifi_config_t mywifi_cfg = {
@@ -139,127 +130,127 @@ void myWifi_stop(void)
   ESP_ERROR_CHECK(esp_wifi_stop());
 }
 
-void Socket_Service(void)
+void Socket_Service(My_Wifi_Classdef* My_Wifi)
 {
-  switch (socket_service_state)
+  switch (My_Wifi->socket_service_state)
   {
   case SOCKET_INIT:
     ESP_LOGI("Socket_Service:", "SOCKET_INIT");
     //wait WIFI AP connect
-    while(AP_CONNECT_STATE != true)
+    while(My_Wifi->AP_CONNECT_STATE != true)
     {
       vTaskDelay(500);
     }
-    inet_pton(AF_INET, host_ip, &dest_addr.sin_addr);
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(Port);
-    addr_family = AF_INET;
-    ip_protocol = IPPROTO_IP;
+    inet_pton(AF_INET, HOST_IP, &My_Wifi->dest_addr.sin_addr);
+    My_Wifi->dest_addr.sin_family = AF_INET;
+    My_Wifi->dest_addr.sin_port = htons(Port);
+    My_Wifi->addr_family = AF_INET;
+    My_Wifi->ip_protocol = IPPROTO_IP;
 
-    socket_service_state = SOCKET_CREATE;
+    My_Wifi->socket_service_state = SOCKET_CREATE;
     break;
 
   case SOCKET_CREATE:
     ESP_LOGI("Socket_Service:", "SOCKET_CREATE");
-    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-    while(sock < 0)
+    My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
+    while(My_Wifi->sock < 0)
     {
       ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
       vTaskDelay(1000);
       ESP_LOGW(TAG, "Retry to create socket......");
-      sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+      My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
     }
-    ESP_LOGI(TAG, "Socket created, connecting to %s:%d", host_ip, Port);
+    ESP_LOGI(TAG, "Socket created, connecting to %s:%d", HOST_IP, Port);
 
-    socket_service_state = SOCKET_CONNECT;
+    My_Wifi->socket_service_state = SOCKET_CONNECT;
     break;
 
   case SOCKET_CONNECT:
     ESP_LOGI("Socket_Service:", "SOCKET_CONNECT");
     int err;
-    err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    err = connect(My_Wifi->sock, (struct sockaddr *)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
     while(err != 0)
     {
       ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
       vTaskDelay(1000);
       ESP_LOGW(TAG, "Socket Retry to connect......");
-      close(sock);
+      close(My_Wifi->sock);
       vTaskDelay(100);
-      sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-      err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+      My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
+      err = connect(My_Wifi->sock, (struct sockaddr *)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
     }
     ESP_LOGI(TAG, "Successfully connected");
 
-    socket_service_state = SOCKET_WAIT;
+    My_Wifi->socket_service_state = SOCKET_WAIT;
     break;
 
   case SOCKET_WAIT:
-    if(xSemaphoreTake(Socket_ERR,0) == pdTRUE)
+    if(xSemaphoreTake(My_Wifi->Socket_ERR,0) == pdTRUE)
     {
-      socket_service_state = SOCKET_DISCONNECT;
+      My_Wifi->socket_service_state = SOCKET_DISCONNECT;
     }
     break;
 
   case SOCKET_DISCONNECT:
     ESP_LOGI("Socket_Service:", "SOCKET_DISCONNECT");
-    socket_service_state = SOCKET_INIT;
+    My_Wifi->socket_service_state = SOCKET_INIT;
     break;
   default:
     break;
   }
 }
 
-void my_wifi_TCP_vofa_init(void)
+void my_wifi_TCP_vofa_init(My_Wifi_Classdef* My_Wifi)
 {
-  Socket_ERR = xSemaphoreCreateBinary();
-  if(Socket_ERR == NULL)
+  My_Wifi->Socket_ERR = xSemaphoreCreateBinary();
+  if(My_Wifi->Socket_ERR == NULL)
   {
     ESP_LOGE(TAG, "Socket_ERR Semap Create Fail");
   }
   //wait WIFI AP connect
-  while(AP_CONNECT_STATE != true)
+  while(My_Wifi->AP_CONNECT_STATE != true)
   {
     vTaskDelay(500);
   }
 
-  inet_pton(AF_INET, host_ip, &dest_addr.sin_addr);
-  dest_addr.sin_family = AF_INET;
-  dest_addr.sin_port = htons(Port);
-  addr_family = AF_INET;
-  ip_protocol = IPPROTO_IP;
+  inet_pton(AF_INET, HOST_IP, &My_Wifi->dest_addr.sin_addr);
+  My_Wifi->dest_addr.sin_family = AF_INET;
+  My_Wifi->dest_addr.sin_port = htons(Port);
+  My_Wifi->addr_family = AF_INET;
+  My_Wifi->ip_protocol = IPPROTO_IP;
 
   int err;
 
-  sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-  while(sock < 0)
+  My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
+  while(My_Wifi->sock < 0)
   {
     ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
     vTaskDelay(1000);
     ESP_LOGW(TAG, "Retry to create socket......");
-    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+    My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
   }
-  ESP_LOGI(TAG, "Socket created, connecting to %s:%d", host_ip, Port);
+  ESP_LOGI(TAG, "Socket created, connecting to %s:%d", HOST_IP, Port);
 
-  err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+  err = connect(My_Wifi->sock, (struct sockaddr *)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
   while(err != 0)
   {
     ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
     vTaskDelay(1000);
     ESP_LOGW(TAG, "Socket Retry to connect......");
-    close(sock);
+    close(My_Wifi->sock);
     vTaskDelay(100);
-    sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-    err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_STREAM, My_Wifi->ip_protocol);
+    err = connect(My_Wifi->sock, (struct sockaddr *)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
   }
   ESP_LOGI(TAG, "Successfully connected");
 
-  socket_service_state = SOCKET_WAIT;
+  My_Wifi->socket_service_state = SOCKET_WAIT;
 }
 
-void myWifi_Socket_Re_Connect(void)
+void myWifi_Socket_Re_Connect(My_Wifi_Classdef* My_Wifi)
 {
   int err;
-  err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+  err = connect(My_Wifi->sock, (struct sockaddr *)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
   while(err != 0)
   {
     ESP_LOGW(TAG, "Socket unable to connect: errno %d", errno);
@@ -269,16 +260,16 @@ void myWifi_Socket_Re_Connect(void)
   ESP_LOGI(TAG, "Successfully connected");
 }
 
-void myWifi_TCP_vofa_send(char *payload,uint32_t len)
+void myWifi_TCP_vofa_send(My_Wifi_Classdef* My_Wifi, char *payload, uint32_t len)
 {
-  if(socket_service_state == SOCKET_WAIT)
+  if(My_Wifi->socket_service_state == SOCKET_WAIT)
   {
-    int err = send(sock, payload, len, 0);
+    int err = send(My_Wifi->sock, payload, len, 0);
     if (err < 0) {
       ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-      if(socket_service_state == SOCKET_WAIT)
+      if(My_Wifi->socket_service_state == SOCKET_WAIT)
       {
-        xSemaphoreGive(Socket_ERR);
+        xSemaphoreGive(My_Wifi->Socket_ERR);
         ESP_LOGW(TAG, "Socket_ERR Give");
       }
     }
@@ -301,25 +292,25 @@ void myWifi_TCP_vofa_send(char *payload,uint32_t len)
   // }
 }
 
-char* myWifi_TCP_vofa_recv(void)
+char* myWifi_TCP_vofa_recv(My_Wifi_Classdef* My_Wifi)
 {
-  while(socket_service_state != SOCKET_WAIT)
+  while(My_Wifi->socket_service_state != SOCKET_WAIT)
   {
     vTaskDelay(1000);
   }
-  int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+  int len = recv(My_Wifi->sock, My_Wifi->rx_buffer, sizeof(My_Wifi->rx_buffer) - 1, 0);
   // Error occurred during receiving
   if (len < 0) {
     ESP_LOGE(TAG, "recv failed: errno %d", errno);
-    if(socket_service_state == SOCKET_WAIT)
-      xSemaphoreGive(Socket_ERR);
+    if(My_Wifi->socket_service_state == SOCKET_WAIT)
+      xSemaphoreGive(My_Wifi->Socket_ERR);
   }
   // Data received
   else {
-    rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-    ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
-    ESP_LOGI(TAG, "%s", rx_buffer);
-    return rx_buffer;
+    My_Wifi->rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+    ESP_LOGI(TAG, "Received %d bytes from %s:", len, HOST_IP);
+    ESP_LOGI(TAG, "%s", My_Wifi->rx_buffer);
+    return My_Wifi->rx_buffer;
   }
 
   // if (sock != -1) {
@@ -327,13 +318,13 @@ char* myWifi_TCP_vofa_recv(void)
   //   shutdown(sock, 0);
   //   close(sock);
   // }
-  return rx_buffer;
+  return My_Wifi->rx_buffer;
 }
 
-void myWifi_TCP_vofa_stop(void)
+void myWifi_TCP_vofa_stop(My_Wifi_Classdef* My_Wifi)
 {
-  shutdown(sock,0);
-  int err = close(sock);
+  shutdown(My_Wifi->sock,0);
+  int err = close(My_Wifi->sock);
   if (err < 0) {
     ESP_LOGE(TAG, "Error occurred during clossing: errno %d", errno);
     while(1)
@@ -432,90 +423,90 @@ void OTA_update(void)
   }
 }
 
-void my_wifi_UDP_vofa_init(void)
+void my_wifi_UDP_vofa_init(My_Wifi_Classdef* My_Wifi)
 {
-  Socket_ERR = xSemaphoreCreateBinary();
-  if(Socket_ERR == NULL)
+  My_Wifi->Socket_ERR = xSemaphoreCreateBinary();
+  if(My_Wifi->Socket_ERR == NULL)
   {
     ESP_LOGE(TAG, "Socket_ERR Semap Create Fail");
   }
   //wait WIFI AP connect
-  while(AP_CONNECT_STATE != true)
+  while(My_Wifi->AP_CONNECT_STATE != true)
   {
     vTaskDelay(500);
   }
 
-  addr_family = AF_INET;
-  ip_protocol = IPPROTO_IP;
+  My_Wifi->addr_family = AF_INET;
+  My_Wifi->ip_protocol = IPPROTO_IP;
 
-  sock =  socket(addr_family, SOCK_DGRAM, ip_protocol);
-  while(sock < 0)
+  My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_DGRAM, My_Wifi->ip_protocol);
+  while(My_Wifi->sock < 0)
   {
     ESP_LOGW(TAG, "Unable to create socket: errno %d", errno);
     vTaskDelay(1000);
     ESP_LOGW(TAG, "Retry to create socket......");
-    sock =  socket(addr_family, SOCK_DGRAM, ip_protocol);
+    My_Wifi->sock =  socket(My_Wifi->addr_family, SOCK_DGRAM, My_Wifi->ip_protocol);
   }
 
-  dest_addr.sin_family = AF_INET;
-  dest_addr.sin_addr.s_addr = inet_addr(UDP_HOST_IP);
-  dest_addr.sin_port = htons(UDP_Port);
+  My_Wifi->dest_addr.sin_family = AF_INET;
+  My_Wifi->dest_addr.sin_addr.s_addr = inet_addr(UDP_HOST_IP);
+  My_Wifi->dest_addr.sin_port = htons(UDP_Port);
   ESP_LOGI(TAG, "Socket created, Config to %s:%d", UDP_HOST_IP, UDP_Port);
 
-  local_addr.sin_family = AF_INET;
-  local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  local_addr.sin_port = htons(LOCAL_PORT);
+  My_Wifi->local_addr.sin_family = AF_INET;
+  My_Wifi->local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  My_Wifi->local_addr.sin_port = htons(LOCAL_PORT);
   uint8_t res = 0;
-  res = bind(sock, (struct sockaddr*)&local_addr, sizeof(local_addr));
+  res = bind(My_Wifi->sock, (struct sockaddr*)&(My_Wifi->local_addr), sizeof(My_Wifi->local_addr));
   if(res != 0)
   {
     ESP_LOGW(TAG, "Bind Err");
   }
   ESP_LOGI(TAG, "BIND Port:%d", LOCAL_PORT);
   
-  socket_service_state = SOCKET_WAIT;
+  My_Wifi->socket_service_state = SOCKET_WAIT;
 }
 
-void myWifi_UDP_vofa_send(char *payload,uint32_t len)
+void myWifi_UDP_vofa_send(My_Wifi_Classdef* My_Wifi, char *payload, uint32_t len)
 {
-  if(socket_service_state == SOCKET_WAIT)
+  if(My_Wifi->socket_service_state == SOCKET_WAIT)
   {
     // int err = sendto(sock, payload, strlen(payload), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-    int err = sendto(sock, payload, len, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    int err = sendto(My_Wifi->sock, payload, len, 0, (struct sockaddr*)&(My_Wifi->dest_addr), sizeof(My_Wifi->dest_addr));
     if(err < 0)
     {
       ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-      if(socket_service_state == SOCKET_WAIT)
+      if(My_Wifi->socket_service_state == SOCKET_WAIT)
       {
-        xSemaphoreGive(Socket_ERR);
+        xSemaphoreGive(My_Wifi->Socket_ERR);
         ESP_LOGW(TAG, "Socket_ERR Give");
       }
     }
   }
 }
 
-char* myWifi_UDP_vofa_recv(void)
+char* myWifi_UDP_vofa_recv(My_Wifi_Classdef* My_Wifi)
 {
-  while(socket_service_state != SOCKET_WAIT)
+  while(My_Wifi->socket_service_state != SOCKET_WAIT)
   {
     vTaskDelay(1000);
   }
   struct sockaddr_storage source_addr;
   socklen_t socklen = sizeof(source_addr);
-  int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr*)&source_addr, &socklen);
+  int len = recvfrom(My_Wifi->sock, My_Wifi->rx_buffer, sizeof(My_Wifi->rx_buffer) - 1, 0, (struct sockaddr*)&source_addr, &socklen);
 
   // Error occurred during receiving
   if (len < 0) {
     ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-    if(socket_service_state == SOCKET_WAIT)
-      xSemaphoreGive(Socket_ERR);
+    if(My_Wifi->socket_service_state == SOCKET_WAIT)
+      xSemaphoreGive(My_Wifi->Socket_ERR);
   }
   // Data received
   else {
-    rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-    ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
-    ESP_LOGI(TAG, "%s", rx_buffer);
-    return rx_buffer;
+    My_Wifi->rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+    ESP_LOGI(TAG, "Received %d bytes from %s:", len, HOST_IP);
+    ESP_LOGI(TAG, "%s", My_Wifi->rx_buffer);
+    return My_Wifi->rx_buffer;
   }
 
   // if (sock != -1) {
@@ -523,13 +514,13 @@ char* myWifi_UDP_vofa_recv(void)
   //   shutdown(sock, 0);
   //   close(sock);
   // }
-  return rx_buffer;
+  return My_Wifi->rx_buffer;
 }
 
-void myWifi_UDP_vofa_stop(void)
+void myWifi_UDP_vofa_stop(My_Wifi_Classdef* My_Wifi)
 {
-  shutdown(sock,0);
-  int err = close(sock);
+  shutdown(My_Wifi->sock,0);
+  int err = close(My_Wifi->sock);
   if (err < 0) {
     ESP_LOGE(TAG, "Error occurred during clossing: errno %d", errno);
     while(1)
@@ -538,4 +529,28 @@ void myWifi_UDP_vofa_stop(void)
     }
   }
   ESP_LOGW(TAG, "Vofa Socket close");
+}
+
+void My_Wifi_Class_init(My_Wifi_Classdef* My_Wifi)
+{
+  My_Wifi->AP_CONNECT_STATE = false;
+  My_Wifi->addr_family = 0;
+  My_Wifi->ip_protocol = 0;
+  My_Wifi->AP_retry_num = 0;
+
+  My_Wifi->init = (void (*)(void*))myWifi_init;
+  My_Wifi->start = (void (*)(void))myWifi_start;
+  My_Wifi->stop = (void (*)(void))myWifi_stop;
+  My_Wifi->vofa.TCP_init = (void (*)(void*))my_wifi_TCP_vofa_init;
+  My_Wifi->vofa.TCP_send = (void (*)(void*, char *payload, uint32_t len))myWifi_TCP_vofa_send;
+  My_Wifi->vofa.TCP_recv = (char* (*)(void*))myWifi_TCP_vofa_recv;
+  My_Wifi->vofa.TCP_stop = (void (*)(void*))myWifi_TCP_vofa_stop;
+  My_Wifi->vofa.UDP_init = (void (*)(void*))my_wifi_UDP_vofa_init;
+  My_Wifi->vofa.UDP_send = (void (*)(void*, char *payload, uint32_t len))myWifi_UDP_vofa_send;
+  My_Wifi->vofa.UDP_recv = (char* (*)(void*))myWifi_UDP_vofa_recv;
+  My_Wifi->vofa.UDP_stop = (void (*)(void*))myWifi_UDP_vofa_stop;
+  My_Wifi->Socket_Service = (void (*)(void*))Socket_Service;
+  My_Wifi->OTA = (void (*)(void*))OTA_update;
+
+  My_Wifi->init(My_Wifi);
 }

@@ -112,6 +112,8 @@ Servo_Classdef Servo;
 Indicator_Classdef Indicator;
 BAT_Voltage_Classdef BAT;
 
+My_Wifi_Classdef My_Wifi;
+
 /*Var*/
 DRAM_ATTR float pitch_target = 0.0f;
 DRAM_ATTR float roll_target = 0.0f;
@@ -528,11 +530,11 @@ void Task_UpMonitor(void *arg)
     float data[WIFI_LINE_NUM + 1];
     char out[WIFI_LINE_NUM * 4 + 4];
   }Line;
-  myWifi_init();
-  myWifi_start();
+  My_Wifi_Class_init(&My_Wifi);
+  My_Wifi.start();
   vTaskDelay(1000);
-  // my_wifi_TCP_vofa_init();
-  my_wifi_UDP_vofa_init();
+  // My_Wifi.vofa.TCP_init(&My_Wifi);
+  My_Wifi.vofa.UDP_init(&My_Wifi);
   vTaskDelay(1000);
   Line.out[WIFI_LINE_NUM * 4] = 0x00;
   Line.out[WIFI_LINE_NUM * 4 + 1] = 0x00;
@@ -580,9 +582,9 @@ void Task_UpMonitor(void *arg)
     Line.data[13] = Control.power_out.throttle_B;
     Line.data[14] = Control.power_out.throttle_C;
     Line.data[15] = Control.power_out.throttle_D;
-    // myWifi_TCP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
-    myWifi_UDP_vofa_send(Line.out,WIFI_LINE_NUM * 4 + 4);
-    Socket_Service();
+    // My_Wifi.vofa.TCP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
+    My_Wifi.vofa.UDP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
+    My_Wifi.Socket_Service(&My_Wifi);
     vTaskDelay(1);
   }
 }
@@ -601,19 +603,18 @@ void Task_Wifi_Recv(void *arg)
   static char* wifi_rec_buff;
   for(;;)
   {
-    // wifi_rec_buff = myWifi_TCP_vofa_recv();
-    wifi_rec_buff = myWifi_UDP_vofa_recv();
+    // wifi_rec_buff = My_Wifi.vofa.TCP_recv(&My_Wifi);
+    wifi_rec_buff = My_Wifi.vofa.UDP_recv(&My_Wifi);
     if(*wifi_rec_buff == 'U')
     {
       ESP_LOGI("OTA","Decte U");
       //close other wifi
       vTaskSuspend(UpMonitor_Handle);
-      // myWifi_TCP_vofa_stop();
-      myWifi_UDP_vofa_stop();
-
+      // My_Wifi.vofa.TCP_stop(&My_Wifi);
+      My_Wifi.vofa.UDP_stop(&My_Wifi);
       ESP_LOGI("OTA","Now going to OTA....");
       Indicator.Send_Message(&Indicator, 255, 0, 255, Breath, 255);
-      OTA_update();
+      My_Wifi.OTA(&My_Wifi);
     }
     vTaskDelay(10);
   }
