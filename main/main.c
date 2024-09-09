@@ -562,7 +562,7 @@ void Task_receiver_TLM(void *arg)
  */
 void Task_UpMonitor(void *arg)
 {
-  TickType_t xLastWakeTime = xTaskGetTickCount();
+  // TickType_t xLastWakeTime = xTaskGetTickCount();
   union
   {
     float data[WIFI_LINE_NUM + 1];
@@ -630,8 +630,8 @@ void Task_UpMonitor(void *arg)
     // My_Wifi.vofa.TCP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
     My_Wifi.vofa.UDP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
     My_Wifi.Socket_Service(&My_Wifi);
-    // vTaskDelay(1);
-    xTaskDelayUntil(&xLastWakeTime, 1);
+    vTaskDelay(1);
+    // xTaskDelayUntil(&xLastWakeTime, 1);
   }
 }
 

@@ -8,6 +8,7 @@ void Control_update(Control_Classdef* Control, float Throttle,
                                                float Pitch_Target, float Pitch_Current,
                                                float Yaw_Target, float Yaw_Current);
 void Control_cal(Control_Classdef* Control);
+float Get_Thr_Weight(Control_Classdef* Control);
 
 void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
 {
@@ -22,11 +23,11 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
 
   Control->power_param.Throttle_k = 1800;
   Control->power_param.Throttle_b = -160.0;
-  Control->power_param.Roll_k = 600.0;
+  Control->power_param.Roll_k = 800.0;
   Control->power_param.Roll_b = 0.0;
-  Control->power_param.Pitch_k = 600.0;
+  Control->power_param.Pitch_k = 800.0;
   Control->power_param.Pitch_b = 0.0;
-  Control->power_param.Yaw_k = 600.0;
+  Control->power_param.Yaw_k = 800.0;
   Control->power_param.Yaw_b = 0.0;
 
   Control->init = (void (*)(void*))Control_init;
@@ -35,6 +36,7 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
                                      float Pitch_Target, float Pitch_Current,
                                      float Yaw_Target, float Yaw_Current))Control_update;
   Control->cal = (void (*)(void*))Control_cal;
+  Control->power_param.Thr_Weight = (float (*)(void*))Get_Thr_Weight;
 
   myPID_Class_init(&Control->PID.Roll, param.Roll.Kp, param.Roll.Ki, param.Roll.Kd,
                     param.Roll.P_Limit, param.Roll.I_Limit, param.Roll.D_Limit, param.Roll.OUT_Limit);
@@ -76,21 +78,25 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   Control->Normal_Data.Yaw = Control->PID.Yaw.OUT / Control->PID.Yaw.param.OUT_Limit;
 
   temp_throttle_A = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + Control->power_param.Thr_Weight(Control) * (
                     - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b));
   temp_throttle_B = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + Control->power_param.Thr_Weight(Control) * (
                     - (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b));
   temp_throttle_C = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + Control->power_param.Thr_Weight(Control) * (
                     + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     + (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    - (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b));
   temp_throttle_D = (Control->power_param.Throttle_k * Control->Throttle + Control->power_param.Throttle_b)
+                    + Control->power_param.Thr_Weight(Control) * (
                     + (Control->power_param.Roll_k * Control->Normal_Data.Roll + Control->power_param.Roll_b)
                     - (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b)
-                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
+                    + (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b));
   // temp_throttle_A = Control->Throttle * 2000 - 170;
   // temp_throttle_B = Control->Throttle * 2000 - 170;
   // temp_throttle_C = Control->Throttle * 2000 - 170;
@@ -133,4 +139,17 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   Control->power_out.throttle_B = (uint16_t)temp_throttle_B;
   Control->power_out.throttle_C = (uint16_t)temp_throttle_C;
   Control->power_out.throttle_D = (uint16_t)temp_throttle_D;
+}
+
+float Get_Thr_Weight(Control_Classdef* Control)
+{
+  if(Control->Throttle >= 0 && Control->Throttle < 0.75)
+  {
+    return 0.8;
+  }
+  else if(Control->Throttle >= 0.75)
+  {
+    return 1;
+  }
+  return 0;
 }

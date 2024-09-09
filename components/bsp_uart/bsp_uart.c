@@ -26,7 +26,7 @@ void uart_init(uart_num_t uart_num, uint32_t _baud_rate, int8_t tx_pin, int8_t r
     Uart0_Mutex_Lock = xSemaphoreCreateMutex();
     if(Uart0_Mutex_Lock == NULL)
     {
-      ESP_LOGE("UART","Mutex Lock Create Fail......");
+      ESP_LOGE(TAG, "Mutex Lock Create Fail......");
     }
     xSemaphoreTake(Uart0_Mutex_Lock,portMAX_DELAY);     //Lock
     break;
@@ -34,7 +34,7 @@ void uart_init(uart_num_t uart_num, uint32_t _baud_rate, int8_t tx_pin, int8_t r
     Uart1_Mutex_Lock = xSemaphoreCreateMutex();
     if(Uart1_Mutex_Lock == NULL)
     {
-      ESP_LOGE("UART","Mutex Lock Create Fail......");
+      ESP_LOGE(TAG, "Mutex Lock Create Fail......");
     }
     xSemaphoreTake(Uart1_Mutex_Lock,portMAX_DELAY);     //Lock
     break;
@@ -42,7 +42,7 @@ void uart_init(uart_num_t uart_num, uint32_t _baud_rate, int8_t tx_pin, int8_t r
     Uart2_Mutex_Lock = xSemaphoreCreateMutex();
     if(Uart2_Mutex_Lock == NULL)
     {
-      ESP_LOGE("UART","Mutex Lock Create Fail......");
+      ESP_LOGE(TAG, "Mutex Lock Create Fail......");
     }
     xSemaphoreTake(Uart2_Mutex_Lock,portMAX_DELAY);     //Lock
     break;

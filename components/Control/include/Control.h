@@ -71,6 +71,8 @@ typedef struct
     float Pitch_b;
     float Yaw_k;
     float Yaw_b;
+
+    float (*Thr_Weight)(void* Control);
   }power_param;
 
   struct

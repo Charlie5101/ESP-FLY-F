@@ -95,12 +95,12 @@ void myWifi_init(My_Wifi_Classdef* My_Wifi)
   esp_netif_create_default_wifi_sta();
   ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
                                                       ESP_EVENT_ANY_ID,
-                                                      &event_handler,
+                                                      (esp_event_handler_t)event_handler,
                                                       (void*)My_Wifi,
                                                       &My_Wifi->instance_any_id));
   ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
                                                       IP_EVENT_STA_GOT_IP,
-                                                      &event_handler,
+                                                      (esp_event_handler_t)event_handler,
                                                       (void*)My_Wifi,
                                                       &My_Wifi->instance_got_ip));
   wifi_init_config_t mywifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
