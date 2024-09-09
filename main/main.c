@@ -171,65 +171,65 @@ uint8_t app_main(void)
   //Create tasks
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_MAIN,      "main task",      Task_MAIN_Stack,      (void*)Init_Seq, Task_MAIN_Prio,       &MAIN_Handle,      1);
-  ESP_LOGW("SYS", "main task created and inited");
+  ESP_LOGW("SYS", "main task created");
   #if INDICATOR_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_indicator, "indicator LED",  Task_indicator_Stack, (void*)Init_Seq, Task_indicator_Prio,  &Indicator_Handle, 0);
-  ESP_LOGW("SYS", "indicator LED task created and inited");
+  ESP_LOGW("SYS", "indicator LED task created");
   #endif
   #if RGB_LED_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_RGB_LED,   "RGB LED out",    Task_RGB_LED_Stack,   (void*)Init_Seq, Task_RGB_LED_Prio,    &RGB_LED_Handle,   0);
-  ESP_LOGW("SYS", "RGB LED out task created and inited");
+  ESP_LOGW("SYS", "RGB LED out task created");
   #endif
   #if SENSOR_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_sensor,    "IMU task",       Task_sensor_Stack,    (void*)Init_Seq, Task_sensor_Prio,     &Sensor_Handle,    1);
-  ESP_LOGW("SYS", "IMU task created and inited");
+  ESP_LOGW("SYS", "IMU task created");
   #endif
   #if BLACK_BOX_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_black_box, "flash black box",Task_black_box_Stack, (void*)Init_Seq, Task_black_box_Prio,  &Black_box_Handle, 0);
-  ESP_LOGW("SYS", "flash black box task created and inited");
+  ESP_LOGW("SYS", "flash black box task created");
   #endif
   #if BAT_ADC_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_bat_adc,   "Battery voltage",Task_bat_adc_Stack,   (void*)Init_Seq, Task_bat_adc_Prio,    &Bat_adc_Handle,   0);
-  ESP_LOGW("SYS", "Battery voltage task created and inited");
+  ESP_LOGW("SYS", "Battery voltage task created");
   #endif
   #if RECEIVER_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_receiver,   "Receiver",      Task_receiver_Stack,  (void*)Init_Seq, Task_receiver_Prio,   &Receiver_Handle,  0);
-  ESP_LOGW("SYS", "Receiver task created and inited");
+  ESP_LOGW("SYS", "Receiver task created");
   #endif
   #if MOTOR_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_motor,     "motor out",      Task_motor_Stack,     (void*)Init_Seq, Task_motor_Prio,      &Motor_Handle,     0);
-  ESP_LOGW("SYS", "motor out task created and inited");
+  ESP_LOGW("SYS", "motor out task created");
   #endif
   #if UPMONITOR_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_UpMonitor,  "UpMonitor",     Task_UpMonitor_Stack, (void*)Init_Seq, Task_UpMonitor_Prio,  &UpMonitor_Handle, 0);
-  ESP_LOGW("SYS", "UpMonitor task created and inited");
+  ESP_LOGW("SYS", "UpMonitor task created");
   #endif
   #if WIFI_RECV_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_Wifi_Recv,  "Wifi Receive",  Task_Wifi_Recv_Stack, (void*)Init_Seq, Task_Wifi_Recv_Prio,  &Wifi_Recv_Handle, 0);
-  ESP_LOGW("SYS", "Wifi Receive task created and inited");
+  ESP_LOGW("SYS", "Wifi Receive task created");
   #endif
   #if GPS_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_GPS,       "GPS/BDS",        Task_GPS_Stack,       (void*)Init_Seq, Task_GPS_Prio,        &GPS_Handle,       0);
-  ESP_LOGW("SYS", "GPS/BDS task created and inited");
+  ESP_LOGW("SYS", "GPS/BDS task created");
   #endif
   #if BUZZER_ENABLE == 1
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   xTaskCreatePinnedToCore(Task_buzzer,    "buzzer",         Task_buzzer_Stack,    (void*)Init_Seq, Task_buzzer_Prio,     &Buzzer_Handle,    0);
-  ESP_LOGW("SYS", "buzzer task created and inited");
+  ESP_LOGW("SYS", "buzzer task created");
   #endif
   xSemaphoreTake(*Init_Seq, portMAX_DELAY);
   vPortFree(*Init_Seq);
-  ESP_LOGW("SYS", "All task created and inited");
+  ESP_LOGW("SYS", "All task created");
   return 0;
 }
 
@@ -511,6 +511,7 @@ void Task_receiver(void *arg)
  */
 void Task_Link_Check(void *arg)
 {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;)
   {
     if(Receiver.LinkNum > 0)
@@ -533,7 +534,8 @@ void Task_Link_Check(void *arg)
       Receiver.LinkState = false;
       // ESP_LOGW("LINK STATE","FALSE");
     }
-    vTaskDelay(3);
+    // vTaskDelay(3);
+    xTaskDelayUntil(&xLastWakeTime, 3);
   }
 }
 
@@ -560,6 +562,7 @@ void Task_receiver_TLM(void *arg)
  */
 void Task_UpMonitor(void *arg)
 {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
   union
   {
     float data[WIFI_LINE_NUM + 1];
@@ -611,9 +614,15 @@ void Task_UpMonitor(void *arg)
     Line.data[6] = Senser.Mahony_ICM.ACC_NOMAL;
     Line.data[7] = Senser.Mahony_BMI.ACC_NOMAL;
     Line.data[8] = yaw_target;
-    Line.data[9] = Control.PID.Roll.data.Target;
-    Line.data[10] = Control.PID.Roll.data.Current;
-    Line.data[11] = Control.PID.Roll.OUT;
+    // Line.data[9] = Control.PID.Roll.data.Target;
+    // Line.data[10] = Control.PID.Roll.data.Current;
+    // Line.data[11] = Control.PID.Roll.OUT;
+    // Line.data[9] = Control.PID.Pitch.data.Target;
+    // Line.data[10] = Control.PID.Pitch.data.Current;
+    // Line.data[11] = Control.PID.Pitch.OUT;
+    Line.data[9] = Control.PID.Yaw.data.Target;
+    Line.data[10] = Control.PID.Yaw.data.Current;
+    Line.data[11] = Control.PID.Yaw.OUT;
     Line.data[12] = Control.power_out.throttle_A;
     Line.data[13] = Control.power_out.throttle_B;
     Line.data[14] = Control.power_out.throttle_C;
@@ -621,7 +630,8 @@ void Task_UpMonitor(void *arg)
     // My_Wifi.vofa.TCP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
     My_Wifi.vofa.UDP_send(&My_Wifi, Line.out, WIFI_LINE_NUM * 4 + 4);
     My_Wifi.Socket_Service(&My_Wifi);
-    vTaskDelay(1);
+    // vTaskDelay(1);
+    xTaskDelayUntil(&xLastWakeTime, 1);
   }
 }
 

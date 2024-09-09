@@ -1878,14 +1878,27 @@ void Quaternion_to_Euler(float q0, float q1, float q2, float q3, float* Roll, fl
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
 float invSqrt(float x) {
+
+  /* warning edit
 	float halfx = 0.5f * x;
-	static float y;
+	float y;
   y = x;
 	long i = *(long*)&y;
 	i = 0x5f3759df - (i>>1);
 	y = *(float*)&i;
 	y = y * (1.5f - (halfx * y * y));
 	return y;
+  */
+
+  float halfx = 0.5f * x;
+  union
+  {
+    float y;
+    uint32_t i;
+  }conv = {.y = x};
+  conv.i = 0x5f3759df - ( conv.i >> 1 );
+  conv.y *= 1.5f - (halfx * conv.y * conv.y);
+  return conv.y;
 }
 
 void IMU_Kalman_Data_fusion_Class_init(IMU_Kalman_Data_Fusion_Classdef* Kalman)
@@ -1902,11 +1915,26 @@ void IMU_Kalman_Data_fusion_Class_init(IMU_Kalman_Data_Fusion_Classdef* Kalman)
   Kalman->IN_2.q1 = 0.0;
   Kalman->IN_2.q2 = 0.0;
   Kalman->IN_2.q3 = 0.0;
-  memset(Kalman->K_1, 0, 4 * 4 * 4);
-  memset(Kalman->K_2, 0, 4 * 4 * 4);
-  memset(Kalman->P, 0, 4 * 4 * 4);
-  memset(Kalman->R_1, 0, 4 * 4 * 4);
-  memset(Kalman->R_2, 0, 4 * 4 * 4);
+  // memset(Kalman->K_1, 0, 4 * 4 * 4);
+  // memset(Kalman->K_2, 0, 4 * 4 * 4);
+  // memset(Kalman->P, 0, 4 * 4 * 4);
+  // memset(Kalman->R_1, 0, 4 * 4 * 4);
+  // memset(Kalman->R_2, 0, 4 * 4 * 4);
+  for(uint8_t i = 0;i < 4;i++)
+    for(uint8_t j = 0;j < 4;j++)
+      Kalman->K_1[i][j] = 0.0;
+  for(uint8_t i = 0;i < 4;i++)
+    for(uint8_t j = 0;j < 4;j++)
+      Kalman->K_2[i][j] = 0.0;
+  for(uint8_t i = 0;i < 4;i++)
+    for(uint8_t j = 0;j < 4;j++)
+      Kalman->P[i][j] = 0.0;
+  for(uint8_t i = 0;i < 4;i++)
+    for(uint8_t j = 0;j < 4;j++)
+      Kalman->R_1[i][j] = 0.0;
+  for(uint8_t i = 0;i < 4;i++)
+    for(uint8_t j = 0;j < 4;j++)
+      Kalman->R_2[i][j] = 0.0;
   Kalman->K_1[0][0] = 1.0;
   Kalman->K_1[1][1] = 1.0;
   Kalman->K_1[2][2] = 1.0;

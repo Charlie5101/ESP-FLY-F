@@ -22,11 +22,11 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
 
   Control->power_param.Throttle_k = 1800;
   Control->power_param.Throttle_b = -160.0;
-  Control->power_param.Roll_k = 400.0;
+  Control->power_param.Roll_k = 600.0;
   Control->power_param.Roll_b = 0.0;
-  Control->power_param.Pitch_k = 400.0;
+  Control->power_param.Pitch_k = 600.0;
   Control->power_param.Pitch_b = 0.0;
-  Control->power_param.Yaw_k = 400.0;
+  Control->power_param.Yaw_k = 600.0;
   Control->power_param.Yaw_b = 0.0;
 
   Control->init = (void (*)(void*))Control_init;
