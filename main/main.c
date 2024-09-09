@@ -111,7 +111,6 @@ DSHOT_Classdef DSHOT;
 Servo_Classdef Servo;
 Indicator_Classdef Indicator;
 BAT_Voltage_Classdef BAT;
-
 My_Wifi_Classdef My_Wifi;
 
 /*Var*/
@@ -121,34 +120,11 @@ DRAM_ATTR float yaw_target = 0.0f;
 
 SemaphoreHandle_t Motor_Adjust;
 
-float ICM_temp = 0.0f;
-float BMI_temp = 0.0f;
-float ICM_Ax,ICM_Ay,ICM_Az,ICM_Gx,ICM_Gy,ICM_Gz;
-float BMI_Ax,BMI_Ay,BMI_Az,BMI_Gx,BMI_Gy,BMI_Gz;
 float t = 0.0001;
 
-float ICM_Roll = 0.0;
-float ICM_Pitch = 0.0;
-float ICM_Yaw = 0.0;
-
-float Gx = 0.0;
-float Gy = 0.0;
-float Gz = 0.0;
-float Ax = 0.0;
-float Ay = 0.0;
-float Az = 0.0;
 float Roll = 0.0;
 float Pitch = 0.0;
 float Yaw = 0.0;
-float ARoll = 0.0;
-float APitch = 0.0;
-
-float ICM_Gx_offset = 0.0;
-float BMI_Gx_offset = 0.0;
-float ICM_Gy_offset = 0.0;
-float BMI_Gy_offset = 0.0;
-float ICM_Gz_offset = 0.25278f;     //0.111362f
-float BMI_Gz_offset = 0.11278;
 
 uint8_t app_main(void)
 {
