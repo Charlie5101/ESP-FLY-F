@@ -3,7 +3,7 @@
 #include "esp_log.h"
 #include "Control.h"
 
-#define MIN_OUT           19
+#define MIN_OUT           199
 #define MAX_OUT           1999
 #define MIN_THR_WEIGHT    0.8
 #define MAX_THR_WEIGHT    1.2
@@ -314,43 +314,32 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   {
     //NEED CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // Control->distribute_var.Thr_weight = 1.0;
+    temp_throttle_A -= temp_throttle;
+    temp_throttle_B -= temp_throttle;
+    temp_throttle_C -= temp_throttle;
+    temp_throttle_D -= temp_throttle;
     static float* MAX_motor = NULL;
     MAX_motor = Find_MAX_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
     static float* MIN_motor = NULL;
     MIN_motor = Find_MIN_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
     static float* MAX = NULL;
     MAX = Find_ABSF_MAX_IN2(MAX_motor, MIN_motor);
-    Control->distribute_var.Roll_weight = Control->distribute_var.Roll_thr / (*MAX - temp_throttle);
-    Control->distribute_var.Pitch_weight = Control->distribute_var.Pitch_thr / (*MAX - temp_throttle);
-    Control->distribute_var.Yaw_weight = Control->distribute_var.Yaw_thr / (*MAX - temp_throttle);
+    // Control->distribute_var.Roll_weight = Control->distribute_var.Roll_thr / (*MAX);
+    // Control->distribute_var.Pitch_weight = Control->distribute_var.Pitch_thr / (*MAX);
+    // Control->distribute_var.Yaw_weight = Control->distribute_var.Yaw_thr / (*MAX);
     if(*MAX >= MAX_OUT)
     {
-      Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-      Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-      Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.RPY_weight = (MAX_OUT - temp_throttle) / (*MAX);
     }
     else if(*MAX < MIN_OUT)
     {
-      Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-      Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-      Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.RPY_weight = (MIN_OUT - temp_throttle) / (*MAX);
     }
-    temp_throttle_A = temp_throttle
-                      - Control->distribute_var.Roll_thr
-                      + Control->distribute_var.Pitch_thr
-                      + Control->distribute_var.Yaw_thr;
-    temp_throttle_B = temp_throttle
-                      - Control->distribute_var.Roll_thr
-                      - Control->distribute_var.Pitch_thr
-                      - Control->distribute_var.Yaw_thr;
-    temp_throttle_C = temp_throttle
-                      + Control->distribute_var.Roll_thr
-                      + Control->distribute_var.Pitch_thr
-                      - Control->distribute_var.Yaw_thr;
-    temp_throttle_D = temp_throttle
-                      + Control->distribute_var.Roll_thr
-                      - Control->distribute_var.Pitch_thr
-                      + Control->distribute_var.Yaw_thr;
+    temp_throttle_A = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_A);
+    temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
+    temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
+    temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
+    ESP_LOGI("Control", "weight: %f MAX: %f", Control->distribute_var.RPY_weight, *MAX);
 
     Control->distribute_var.motor_bit = 0;
   }

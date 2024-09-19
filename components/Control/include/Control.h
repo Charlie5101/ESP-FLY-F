@@ -87,6 +87,7 @@ typedef struct
     float Roll_weight;
     float Pitch_weight;
     float Yaw_weight;
+    float RPY_weight;
     uint8_t motor_bit;
     float Roll_thr;
     float Pitch_thr;
