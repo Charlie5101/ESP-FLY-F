@@ -72,8 +72,26 @@ typedef struct
     float Yaw_k;
     float Yaw_b;
 
-    float (*Thr_Weight)(void* Control);
+    // float (*Thr_Weight)(void* Control);
   }power_param;
+
+  struct
+  {
+    float Thr_weight;
+    struct
+    {
+      float Roll_weight;
+      float Pitch_weight;
+      float Yaw_weight;
+    }A,B,C,D;
+    float Roll_weight;
+    float Pitch_weight;
+    float Yaw_weight;
+    uint8_t motor_bit;
+    float Roll_thr;
+    float Pitch_thr;
+    float Yaw_thr;
+  }distribute_var;
 
   struct
   {
