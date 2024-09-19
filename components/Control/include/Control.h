@@ -78,12 +78,12 @@ typedef struct
   struct
   {
     float Thr_weight;
-    struct
-    {
-      float Roll_weight;
-      float Pitch_weight;
-      float Yaw_weight;
-    }A,B,C,D;
+    // struct
+    // {
+    //   float Roll_weight;
+    //   float Pitch_weight;
+    //   float Yaw_weight;
+    // }A,B,C,D;
     float Roll_weight;
     float Pitch_weight;
     float Yaw_weight;

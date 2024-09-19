@@ -582,7 +582,8 @@ void Task_UpMonitor(void *arg)
     Line.data[0] = Roll;
     Line.data[1] = Pitch;
     Line.data[2] = Yaw;
-    Line.data[3] = Senser.ICM42688P.Row_data.Gx;
+    // Line.data[3] = Senser.ICM42688P.Row_data.Gx;
+    Line.data[3] = Control.distribute_var.motor_bit;
     Line.data[4] = Senser.ICM42688P.Row_data.Gy;
     Line.data[5] = Senser.ICM42688P.Row_data.Gz;
     // Line.data[6] = roll_target;

@@ -1,8 +1,9 @@
 #include <stdio.h>
+#include <math.h>
 #include "esp_log.h"
 #include "Control.h"
 
-#define MIN_OUT           99
+#define MIN_OUT           19
 #define MAX_OUT           1999
 #define MIN_THR_WEIGHT    0.8
 #define MAX_THR_WEIGHT    1.2
@@ -52,6 +53,7 @@ void Control_cal(Control_Classdef* Control);
 float Get_Thr_Weight(Control_Classdef* Control);
 float* Find_MAX_IN4(float* a, float* b, float* c, float* d);
 float* Find_MIN_IN4(float* a, float* b, float* c, float* d);
+float* Find_ABSF_MAX_IN2(float*a, float* b);
 
 void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
 {
@@ -64,7 +66,7 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
   Control->power_out.throttle_C = 0;
   Control->power_out.throttle_D = 0;
 
-  Control->power_param.Throttle_k = 1800;
+  Control->power_param.Throttle_k = 2000;
   Control->power_param.Throttle_b = -160.0;
   Control->power_param.Roll_k = 1000.0;
   Control->power_param.Roll_b = 0.0;
@@ -72,6 +74,15 @@ void Control_Class_init(Control_Classdef* Control, Control_PID_param param)
   Control->power_param.Pitch_b = 0.0;
   Control->power_param.Yaw_k = 1000.0;
   Control->power_param.Yaw_b = 0.0;
+
+  Control->distribute_var.Thr_weight = 1.0;
+  Control->distribute_var.Roll_weight = 0.0;
+  Control->distribute_var.Pitch_weight = 0.0;
+  Control->distribute_var.Yaw_weight = 0.0;
+  Control->distribute_var.motor_bit = 0;
+  Control->distribute_var.Roll_thr = 0.0;
+  Control->distribute_var.Pitch_thr = 0.0;
+  Control->distribute_var.Yaw_thr = 0.0;
 
   Control->init = (void (*)(void*))Control_init;
   Control->update = (void (*)(void*, float Thtottle,
@@ -128,7 +139,7 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
   Control->distribute_var.Pitch_thr = (Control->power_param.Pitch_k * Control->Normal_Data.Pitch + Control->power_param.Pitch_b);
   Control->distribute_var.Yaw_thr = (Control->power_param.Yaw_k * Control->Normal_Data.Yaw + Control->power_param.Yaw_b);
 
-  if(temp_throttle <= 10 )
+  if(temp_throttle <= MIN_OUT)
   {
     temp_throttle_A = 0;
     temp_throttle_B = 0;
@@ -186,6 +197,7 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     {
       Control->distribute_var.motor_bit = Control->distribute_var.motor_bit | 0b10000000;
     }
+    // ESP_LOGI("Control", "%x:", Control->distribute_var.motor_bit);
   }
 
   if((Control->distribute_var.motor_bit & 0b11110000) != 0 && (Control->distribute_var.motor_bit & 0b00001111) == 0)
@@ -298,7 +310,84 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     }
     Control->distribute_var.motor_bit = 0;
   }
+  else if((Control->distribute_var.motor_bit & 0b00001111) != 0 && (Control->distribute_var.motor_bit & 0b11110000) != 0)
+  {
+    //NEED CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Control->distribute_var.Thr_weight = 1.0;
+    static float* MAX_motor = NULL;
+    MAX_motor = Find_MAX_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
+    static float* MIN_motor = NULL;
+    MIN_motor = Find_MIN_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
+    static float* MAX = NULL;
+    MAX = Find_ABSF_MAX_IN2(MAX_motor, MIN_motor);
+    Control->distribute_var.Roll_weight = Control->distribute_var.Roll_thr / (*MAX - temp_throttle);
+    Control->distribute_var.Pitch_weight = Control->distribute_var.Pitch_thr / (*MAX - temp_throttle);
+    Control->distribute_var.Yaw_weight = Control->distribute_var.Yaw_thr / (*MAX - temp_throttle);
+    if(*MAX >= MAX_OUT)
+    {
+      Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+    }
+    else if(*MAX < MIN_OUT)
+    {
+      Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+      Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
+    }
+    temp_throttle_A = temp_throttle
+                      - Control->distribute_var.Roll_thr
+                      + Control->distribute_var.Pitch_thr
+                      + Control->distribute_var.Yaw_thr;
+    temp_throttle_B = temp_throttle
+                      - Control->distribute_var.Roll_thr
+                      - Control->distribute_var.Pitch_thr
+                      - Control->distribute_var.Yaw_thr;
+    temp_throttle_C = temp_throttle
+                      + Control->distribute_var.Roll_thr
+                      + Control->distribute_var.Pitch_thr
+                      - Control->distribute_var.Yaw_thr;
+    temp_throttle_D = temp_throttle
+                      + Control->distribute_var.Roll_thr
+                      - Control->distribute_var.Pitch_thr
+                      + Control->distribute_var.Yaw_thr;
+
+    Control->distribute_var.motor_bit = 0;
+  }
   else{}
+
+  // if(temp_throttle_A <= 0)
+  // {
+  //   temp_throttle_A = 0;
+  // }
+  // else if(temp_throttle_A >= 1999)
+  // {
+  //   temp_throttle_A = 1999;
+  // }
+  // if(temp_throttle_B <= 0)
+  // {
+  //   temp_throttle_B = 0;
+  // }
+  // else if(temp_throttle_B >= 1999)
+  // {
+  //   temp_throttle_B = 1999;
+  // }
+  // if(temp_throttle_C <= 0)
+  // {
+  //   temp_throttle_C = 0;
+  // }
+  // else if(temp_throttle_C >= 1999)
+  // {
+  //   temp_throttle_C = 1999;
+  // }
+  // if(temp_throttle_D <= 0)
+  // {
+  //   temp_throttle_D = 0;
+  // }
+  // else if(temp_throttle_D >= 1999)
+  // {
+  //   temp_throttle_D = 1999;
+  // }
 
   Control->power_out.throttle_A = (uint16_t)temp_throttle_A;
   Control->power_out.throttle_B = (uint16_t)temp_throttle_B;
@@ -339,18 +428,28 @@ float* Find_MAX_IN4(float* a, float* b, float* c, float* d)
 
 float* Find_MIN_IN4(float* a, float* b, float* c, float* d)
 {
+  float* min = a;
+  if(*min - *b > 0)
+  {
+    min = b;
+  }
+  if(*min - *c > 0)
+  {
+    min = c;
+  }
+  if(*min - *d > 0)
+  {
+    min = d;
+  }
+  return min;
+}
+
+float* Find_ABSF_MAX_IN2(float*a, float* b)
+{
   float* max = a;
-  if(*max - *b > 0)
+  if(fabsf(*max) - fabsf(*b) < 0)
   {
     max = b;
-  }
-  if(*max - *c > 0)
-  {
-    max = c;
-  }
-  if(*max - *d > 0)
-  {
-    max = d;
   }
   return max;
 }
