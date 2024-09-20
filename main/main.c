@@ -21,9 +21,9 @@
 
 /*task config*/
 #define Task_MAIN_Stack       4096
-#define Task_MAIN_Prio        6
+#define Task_MAIN_Prio        18
 #define Task_sensor_Stack     4096
-#define Task_sensor_Prio      6
+#define Task_sensor_Prio      18
 #define Task_black_box_Stack  4096
 #define Task_black_box_Prio   3
 #define Task_indicator_Stack  4096

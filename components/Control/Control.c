@@ -8,42 +8,6 @@
 #define MIN_THR_WEIGHT    0.8
 #define MAX_THR_WEIGHT    1.2
 
-#define FIND_MAX_IN4(a, b, c, d)                          \
-({                                                        \
-  float max = a;                                          \
-  if(max - b < 0)                                         \
-  {                                                       \
-    max = b;                                              \
-  }                                                       \
-  if(max - c < 0)                                         \
-  {                                                       \
-    max = c;                                              \
-  }                                                       \
-  if(max - d < 0)                                         \
-  {                                                       \
-    max = d;                                              \
-  }                                                       \
-  max;                                                    \
-})
-
-#define FIND_MIN_IN4(a, b, c, d)                          \
-({                                                        \
-  float min = a;                                          \
-  if(min - b > 0)                                         \
-  {                                                       \
-    min = b;                                              \
-  }                                                       \
-  if(min - c < 0)                                         \
-  {                                                       \
-    min = c;                                              \
-  }                                                       \
-  if(min - d < 0)                                         \
-  {                                                       \
-    min = d;                                              \
-  }                                                       \
-  min;                                                    \
-})
-
 void Control_init(Control_Classdef* Control);
 void Control_update(Control_Classdef* Control, float Throttle,
                                                float Roll_Target, float Roll_Current,
@@ -202,58 +166,36 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
 
   if((Control->distribute_var.motor_bit & 0b11110000) != 0 && (Control->distribute_var.motor_bit & 0b00001111) == 0)
   {
-    // static float* MAX_motor = NULL;
-    // MAX_motor = Find_MAX_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
-    // Control->distribute_var.Thr_weight = (MAX_OUT - *MAX_motor + temp_throttle) / temp_throttle;
-    // if(Control->distribute_var.Thr_weight >= MIN_THR_WEIGHT)
-    // {
-    //   //OUT
-    //   temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    //   temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    // }
-    // else
-    // {
-    //   Control->distribute_var.Thr_weight = MIN_THR_WEIGHT;
-    //   Control->distribute_var.Roll_weight = Control->distribute_var.Roll_thr / (*MAX_motor - temp_throttle);
-    //   Control->distribute_var.Pitch_weight = Control->distribute_var.Pitch_thr / (*MAX_motor - temp_throttle);
-    //   Control->distribute_var.Yaw_weight = Control->distribute_var.Yaw_thr / (*MAX_motor - temp_throttle);
+    static float* MAX_motor = NULL;
+    MAX_motor = Find_MAX_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
+    Control->distribute_var.Thr_weight = (MAX_OUT - *MAX_motor + temp_throttle) / temp_throttle;
+    if(Control->distribute_var.Thr_weight >= MIN_THR_WEIGHT)
+    {
+      //OUT
+      temp_throttle_A -= temp_throttle;
+      temp_throttle_B -= temp_throttle;
+      temp_throttle_C -= temp_throttle;
+      temp_throttle_D -= temp_throttle;
+      temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_A;
+      temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_B;
+      temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_C;
+      temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_D;
+    }
+    else
+    {
+      Control->distribute_var.Thr_weight = MIN_THR_WEIGHT;
+      temp_throttle_A -= temp_throttle;
+      temp_throttle_B -= temp_throttle;
+      temp_throttle_C -= temp_throttle;
+      temp_throttle_D -= temp_throttle;
+      Control->distribute_var.RPY_weight = (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle) / (*MAX_motor);
+      temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_A);
+      temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
+      temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
+      temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
+    }
 
-    //   Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-    //   Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-    //   Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MAX_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-
-    //   temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    //   temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    // }
-
+    /*
     temp_throttle_A -= temp_throttle;
     temp_throttle_B -= temp_throttle;
     temp_throttle_C -= temp_throttle;
@@ -265,63 +207,42 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
     temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
     temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
+    */
 
     Control->distribute_var.motor_bit = 0;
   }
   else if((Control->distribute_var.motor_bit & 0b00001111) != 0 && (Control->distribute_var.motor_bit & 0b11110000) == 0)
   {
-    // static float* MIN_motor = NULL;
-    // MIN_motor = Find_MIN_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
-    // Control->distribute_var.Thr_weight = (MIN_OUT - *MIN_motor + temp_throttle) / temp_throttle;
-    // if(Control->distribute_var.Thr_weight <= MAX_THR_WEIGHT)
-    // {
-    //   //OUT
-    //   temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    //   temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    // }
-    // else
-    // {
-    //   Control->distribute_var.Thr_weight = MAX_THR_WEIGHT;
-    //   Control->distribute_var.Roll_weight = Control->distribute_var.Roll_thr / (*MIN_motor - temp_throttle);
-    //   Control->distribute_var.Pitch_weight = Control->distribute_var.Pitch_thr / (*MIN_motor - temp_throttle);
-    //   Control->distribute_var.Yaw_weight = Control->distribute_var.Yaw_thr / (*MIN_motor - temp_throttle);
+    static float* MIN_motor = NULL;
+    MIN_motor = Find_MIN_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
+    Control->distribute_var.Thr_weight = (MIN_OUT - *MIN_motor + temp_throttle) / temp_throttle;
+    if(Control->distribute_var.Thr_weight <= MAX_THR_WEIGHT)
+    {
+      //OUT
+      temp_throttle_A -= temp_throttle;
+      temp_throttle_B -= temp_throttle;
+      temp_throttle_C -= temp_throttle;
+      temp_throttle_D -= temp_throttle;
+      temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_A;
+      temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_B;
+      temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_C;
+      temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + temp_throttle_D;
+    }
+    else
+    {
+      Control->distribute_var.Thr_weight = MAX_THR_WEIGHT;
+      temp_throttle_A -= temp_throttle;
+      temp_throttle_B -= temp_throttle;
+      temp_throttle_C -= temp_throttle;
+      temp_throttle_D -= temp_throttle;
+      Control->distribute_var.RPY_weight = (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle) / (*MIN_motor);
+      temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_A);
+      temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
+      temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
+      temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
+    }
 
-    //   Control->distribute_var.Roll_thr = Control->distribute_var.Roll_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-    //   Control->distribute_var.Pitch_thr = Control->distribute_var.Pitch_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-    //   Control->distribute_var.Yaw_thr = Control->distribute_var.Yaw_weight * (MIN_OUT - Control->distribute_var.Thr_weight * temp_throttle);
-
-    //   temp_throttle_A = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    //   temp_throttle_B = Control->distribute_var.Thr_weight * temp_throttle
-    //                     - Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     + Control->distribute_var.Pitch_thr
-    //                     - Control->distribute_var.Yaw_thr;
-    //   temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle
-    //                     + Control->distribute_var.Roll_thr
-    //                     - Control->distribute_var.Pitch_thr
-    //                     + Control->distribute_var.Yaw_thr;
-    // }
-
+    /*
     temp_throttle_A -= temp_throttle;
     temp_throttle_B -= temp_throttle;
     temp_throttle_C -= temp_throttle;
@@ -333,6 +254,7 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
     temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
     temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
+    */
 
     Control->distribute_var.motor_bit = 0;
   }
