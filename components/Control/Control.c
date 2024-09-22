@@ -166,6 +166,7 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
 
   if((Control->distribute_var.motor_bit & 0b11110000) != 0 && (Control->distribute_var.motor_bit & 0b00001111) == 0)
   {
+    /*
     static float* MAX_motor = NULL;
     MAX_motor = Find_MAX_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
     Control->distribute_var.Thr_weight = (MAX_OUT - *MAX_motor + temp_throttle) / temp_throttle;
@@ -194,8 +195,8 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
       temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
       temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
     }
+    */
 
-    /*
     temp_throttle_A -= temp_throttle;
     temp_throttle_B -= temp_throttle;
     temp_throttle_C -= temp_throttle;
@@ -207,12 +208,12 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
     temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
     temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
-    */
 
     Control->distribute_var.motor_bit = 0;
   }
   else if((Control->distribute_var.motor_bit & 0b00001111) != 0 && (Control->distribute_var.motor_bit & 0b11110000) == 0)
   {
+    /*
     static float* MIN_motor = NULL;
     MIN_motor = Find_MIN_IN4(&temp_throttle_A, &temp_throttle_B, &temp_throttle_C, &temp_throttle_D);
     Control->distribute_var.Thr_weight = (MIN_OUT - *MIN_motor + temp_throttle) / temp_throttle;
@@ -241,8 +242,8 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
       temp_throttle_C = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
       temp_throttle_D = Control->distribute_var.Thr_weight * temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
     }
+    */
 
-    /*
     temp_throttle_A -= temp_throttle;
     temp_throttle_B -= temp_throttle;
     temp_throttle_C -= temp_throttle;
@@ -254,8 +255,7 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
     temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
     temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
-    */
-
+    
     Control->distribute_var.motor_bit = 0;
   }
   else if((Control->distribute_var.motor_bit & 0b00001111) != 0 && (Control->distribute_var.motor_bit & 0b11110000) != 0)
@@ -295,44 +295,43 @@ void IRAM_ATTR Control_cal(Control_Classdef* Control)
     temp_throttle_B = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_B);
     temp_throttle_C = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_C);
     temp_throttle_D = temp_throttle + Control->distribute_var.RPY_weight * (temp_throttle_D);
-    
 
     Control->distribute_var.motor_bit = 0;
   }
   else{}
 
-  // if(temp_throttle_A <= 0)
-  // {
-  //   temp_throttle_A = 0;
-  // }
-  // else if(temp_throttle_A >= 1999)
-  // {
-  //   temp_throttle_A = 1999;
-  // }
-  // if(temp_throttle_B <= 0)
-  // {
-  //   temp_throttle_B = 0;
-  // }
-  // else if(temp_throttle_B >= 1999)
-  // {
-  //   temp_throttle_B = 1999;
-  // }
-  // if(temp_throttle_C <= 0)
-  // {
-  //   temp_throttle_C = 0;
-  // }
-  // else if(temp_throttle_C >= 1999)
-  // {
-  //   temp_throttle_C = 1999;
-  // }
-  // if(temp_throttle_D <= 0)
-  // {
-  //   temp_throttle_D = 0;
-  // }
-  // else if(temp_throttle_D >= 1999)
-  // {
-  //   temp_throttle_D = 1999;
-  // }
+  if(temp_throttle_A <= 0)
+  {
+    temp_throttle_A = 0;
+  }
+  else if(temp_throttle_A >= 1999)
+  {
+    temp_throttle_A = 1999;
+  }
+  if(temp_throttle_B <= 0)
+  {
+    temp_throttle_B = 0;
+  }
+  else if(temp_throttle_B >= 1999)
+  {
+    temp_throttle_B = 1999;
+  }
+  if(temp_throttle_C <= 0)
+  {
+    temp_throttle_C = 0;
+  }
+  else if(temp_throttle_C >= 1999)
+  {
+    temp_throttle_C = 1999;
+  }
+  if(temp_throttle_D <= 0)
+  {
+    temp_throttle_D = 0;
+  }
+  else if(temp_throttle_D >= 1999)
+  {
+    temp_throttle_D = 1999;
+  }
 
   Control->power_out.throttle_A = (uint16_t)temp_throttle_A;
   Control->power_out.throttle_B = (uint16_t)temp_throttle_B;
